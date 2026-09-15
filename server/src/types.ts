@@ -128,3 +128,78 @@ export interface OfficeProfile {
   staff: StaffMember[];
   handoffRules: HandoffRule[];
 }
+
+// ---- Stage B: conversations, cases, tasks, reports ----
+
+export type ConversationStatus = 'auto' | 'pending_human' | 'closed';
+export type MessageDirection = 'inbound' | 'outbound';
+export type MessageSenderType = 'client' | 'system' | 'staff';
+export type CaseStatus = 'new' | 'in_progress' | 'waiting_client' | 'closed';
+export type TaskStatus = 'open' | 'done';
+
+export interface Conversation {
+  id: string;
+  officeId: string;
+  contactPhone: string;
+  contactName: string | null;
+  status: ConversationStatus;
+  practiceArea: string | null;
+  assignedStaffId: string | null;
+  everHandoff: boolean;
+  createdAt: string;
+  updatedAt: string;
+  lastMessageAt: string;
+}
+
+export interface Message {
+  id: string;
+  conversationId: string;
+  officeId: string;
+  direction: MessageDirection;
+  senderType: MessageSenderType;
+  text: string;
+  createdAt: string;
+}
+
+export interface ExtractedFields {
+  practiceArea: string | null;
+  urgency: UrgencyLevel | null;
+  phoneNumbers: string[];
+}
+
+export interface ConversationDetail {
+  conversation: Conversation;
+  messages: Message[];
+}
+
+export interface CaseRecord {
+  id: string;
+  officeId: string;
+  conversationId: string | null;
+  title: string;
+  practiceArea: string | null;
+  status: CaseStatus;
+  assignedStaffId: string | null;
+  score: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CaseTask {
+  id: string;
+  caseId: string;
+  officeId: string;
+  title: string;
+  dueDate: string | null;
+  assignedStaffId: string | null;
+  status: TaskStatus;
+  createdAt: string;
+}
+
+export interface ReportsSummary {
+  conversations: { total: number; auto: number; pendingHuman: number; closed: number };
+  cases: { total: number; new: number; inProgress: number; waitingClient: number; closed: number };
+  handoffRate: number;
+  averageScore: number | null;
+  averageFirstResponseSeconds: number | null;
+}

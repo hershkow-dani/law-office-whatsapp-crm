@@ -12,12 +12,18 @@ import { ServiceRegionsSection } from './components/ServiceRegionsSection';
 import { HoursSection } from './components/HoursSection';
 import { StaffSection } from './components/StaffSection';
 import { HandoffSection } from './components/HandoffSection';
+import { ConversationsPanel } from './components/ConversationsPanel';
+import { CasesPanel } from './components/CasesPanel';
+import { ReportsPanel } from './components/ReportsPanel';
+
+type Tab = 'settings' | 'crm';
 
 function App() {
   const [offices, setOffices] = useState<Office[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [profile, setProfile] = useState<OfficeProfile | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [tab, setTab] = useState<Tab>('settings');
 
   const loadOffices = useCallback(async () => {
     const list = await api.listOffices();
@@ -53,8 +59,8 @@ function App() {
   return (
     <div className="app-shell">
       <header className="app-header">
-        <h1>מערכת CRM למשרדי עורכי דין — הגדרות משרד ו-WhatsApp</h1>
-        <p>שלב א׳: תשתית חיבור והגדרות זהות, ללא תלות במספר מרכזי של ספק המערכת.</p>
+        <h1>מערכת CRM למשרדי עורכי דין</h1>
+        <p>שלב א׳: הגדרות משרד ו-WhatsApp. שלב ב׳: מנוע שיחה, חילוץ שדות, תיקים ודוחות.</p>
       </header>
 
       <OfficeSelector
@@ -78,7 +84,18 @@ function App() {
 
       {!selectedId && <p className="hint">אין עדיין משרד. צרו משרד חדש כדי להתחיל.</p>}
 
-      {profile && (
+      {selectedId && (
+        <div className="toolbar" style={{ marginBottom: 16 }}>
+          <button className={tab === 'settings' ? 'primary' : ''} onClick={() => setTab('settings')}>
+            הגדרות משרד
+          </button>
+          <button className={tab === 'crm' ? 'primary' : ''} onClick={() => setTab('crm')}>
+            שיחות, תיקים ודוחות
+          </button>
+        </div>
+      )}
+
+      {tab === 'settings' && profile && (
         <>
           <WhatsappSection officeId={profile.office.id} connection={profile.whatsapp} onSaved={refresh} />
           <IdentitySection office={profile.office} onSaved={refresh} />
@@ -101,6 +118,14 @@ function App() {
           />
           <StaffSection officeId={profile.office.id} staff={profile.staff} practiceAreas={profile.practiceAreas} onSaved={refresh} />
           <HandoffSection officeId={profile.office.id} rules={profile.handoffRules} onSaved={refresh} />
+        </>
+      )}
+
+      {tab === 'crm' && selectedId && (
+        <>
+          <ConversationsPanel officeId={selectedId} />
+          <CasesPanel officeId={selectedId} />
+          <ReportsPanel officeId={selectedId} />
         </>
       )}
     </div>

@@ -13,6 +13,12 @@ import type {
   AfterHoursPolicy,
   StaffMember,
   HandoffRule,
+  Conversation,
+  Message,
+  CaseRecord,
+  CaseTask,
+  CaseStatus,
+  ReportsSummary,
 } from './types';
 
 async function http<T>(url: string, options?: RequestInit): Promise<T> {
@@ -85,4 +91,40 @@ export const api = {
   updateHandoffRule: (id: string, ruleId: string, input: Partial<HandoffRule>) =>
     http<HandoffRule>(`${base}/${id}/handoff-rules/${ruleId}`, { method: 'PATCH', body: JSON.stringify(input) }),
   deleteHandoffRule: (id: string, ruleId: string) => http<void>(`${base}/${id}/handoff-rules/${ruleId}`, { method: 'DELETE' }),
+
+  // ---- Stage B: conversations, cases, tasks, reports ----
+
+  listConversations: (id: string) => http<Conversation[]>(`${base}/${id}/conversations`),
+  createConversation: (id: string, input: { contactPhone: string; contactName?: string | null }) =>
+    http<Conversation>(`${base}/${id}/conversations`, { method: 'POST', body: JSON.stringify(input) }),
+  getConversation: (id: string, conversationId: string) =>
+    http<{ conversation: Conversation; messages: Message[] }>(`${base}/${id}/conversations/${conversationId}`),
+  sendInbound: (id: string, conversationId: string, input: { text: string; explicitHumanRequest?: boolean }) =>
+    http<{ conversation: Conversation; autoReplied: boolean; replyText?: string }>(`${base}/${id}/conversations/${conversationId}/inbound`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+  sendOutbound: (id: string, conversationId: string, input: { text: string }) =>
+    http<Message>(`${base}/${id}/conversations/${conversationId}/outbound`, { method: 'POST', body: JSON.stringify(input) }),
+  closeConversation: (id: string, conversationId: string) =>
+    http<Conversation>(`${base}/${id}/conversations/${conversationId}/close`, { method: 'POST' }),
+  resumeAutoConversation: (id: string, conversationId: string) =>
+    http<Conversation>(`${base}/${id}/conversations/${conversationId}/resume-auto`, { method: 'POST' }),
+
+  listCases: (id: string, status?: CaseStatus) =>
+    http<CaseRecord[]>(`${base}/${id}/cases${status ? `?status=${status}` : ''}`),
+  createCase: (id: string, input: { title: string; conversationId?: string | null; practiceArea?: string | null }) =>
+    http<CaseRecord>(`${base}/${id}/cases`, { method: 'POST', body: JSON.stringify(input) }),
+  getCase: (id: string, caseId: string) => http<{ case: CaseRecord; tasks: CaseTask[] }>(`${base}/${id}/cases/${caseId}`),
+  updateCase: (id: string, caseId: string, input: Partial<{ title: string; status: CaseStatus }>) =>
+    http<CaseRecord>(`${base}/${id}/cases/${caseId}`, { method: 'PATCH', body: JSON.stringify(input) }),
+  scoreCase: (id: string, caseId: string) => http<CaseRecord>(`${base}/${id}/cases/${caseId}/score`, { method: 'POST' }),
+  addTask: (id: string, caseId: string, input: { title: string; dueDate?: string | null }) =>
+    http<CaseTask>(`${base}/${id}/cases/${caseId}/tasks`, { method: 'POST', body: JSON.stringify(input) }),
+  updateTask: (id: string, caseId: string, taskId: string, input: Partial<{ status: TaskStatusUpdate }>) =>
+    http<CaseTask>(`${base}/${id}/cases/${caseId}/tasks/${taskId}`, { method: 'PATCH', body: JSON.stringify(input) }),
+
+  getReportsSummary: (id: string) => http<ReportsSummary>(`${base}/${id}/reports/summary`),
 };
+
+type TaskStatusUpdate = 'open' | 'done';

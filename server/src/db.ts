@@ -120,4 +120,52 @@ CREATE TABLE IF NOT EXISTS handoff_rules (
   preserve_context INTEGER NOT NULL DEFAULT 1,
   is_active INTEGER NOT NULL DEFAULT 1
 );
+
+CREATE TABLE IF NOT EXISTS conversations (
+  id TEXT PRIMARY KEY,
+  office_id TEXT NOT NULL REFERENCES offices(id) ON DELETE CASCADE,
+  contact_phone TEXT NOT NULL,
+  contact_name TEXT,
+  status TEXT NOT NULL DEFAULT 'auto' CHECK (status IN ('auto','pending_human','closed')),
+  practice_area TEXT,
+  assigned_staff_id TEXT REFERENCES staff(id) ON DELETE SET NULL,
+  ever_handoff INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  last_message_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS messages (
+  id TEXT PRIMARY KEY,
+  conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+  office_id TEXT NOT NULL REFERENCES offices(id) ON DELETE CASCADE,
+  direction TEXT NOT NULL CHECK (direction IN ('inbound','outbound')),
+  sender_type TEXT NOT NULL CHECK (sender_type IN ('client','system','staff')),
+  text TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS cases (
+  id TEXT PRIMARY KEY,
+  office_id TEXT NOT NULL REFERENCES offices(id) ON DELETE CASCADE,
+  conversation_id TEXT REFERENCES conversations(id) ON DELETE SET NULL,
+  title TEXT NOT NULL,
+  practice_area TEXT,
+  status TEXT NOT NULL DEFAULT 'new' CHECK (status IN ('new','in_progress','waiting_client','closed')),
+  assigned_staff_id TEXT REFERENCES staff(id) ON DELETE SET NULL,
+  score INTEGER,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS case_tasks (
+  id TEXT PRIMARY KEY,
+  case_id TEXT NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
+  office_id TEXT NOT NULL REFERENCES offices(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  due_date TEXT,
+  assigned_staff_id TEXT REFERENCES staff(id) ON DELETE SET NULL,
+  status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open','done')),
+  created_at TEXT NOT NULL
+);
 `);
