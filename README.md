@@ -1,32 +1,79 @@
-# React + TypeScript + Vite
+# מערכת CRM למשרדי עורכי דין — WhatsApp
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+שלב א׳: תשתית חיבור WhatsApp והגדרות זהות/מדיניות למשרד. הלקוח מנהל שיחה טבעית ב-WhatsApp מול המשרד;
+מאחורי הקלעים המערכת שומרת את הגדרות המשרד ומחליטה מתי לענות אוטומטית ומתי להעביר לאדם. **שלב זה אינו
+כולל עדיין שליחה/קבלה בפועל של הודעות WhatsApp** — ראו "מה נדרש לחיבור חי" למטה.
 
-Currently, two official plugins are available:
+## מבנה הפרויקט
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```
+/                 לקוח: React + Vite + TypeScript (ממשק ניהול הגדרות משרד)
+/server           שרת: Node + Express + TypeScript + SQLite (better-sqlite3)
+/server/src/engine/decision.ts   מנוע ההחלטות: שעות פעילות + תנאי העברה לאדם
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+### למה הבחירות האלה
+
+- **אין ספק WhatsApp קיים בפרויקט** — לכן שלב א׳ בונה רק את התשתית (הגדרות + מודל נתונים + מנוע החלטה),
+  ומתעד בדיוק מה חסר לחיבור חי, כפי שנדרש.
+- **SQLite (better-sqlite3)** — מסד נתונים מקומי, ללא תלות בשירות חיצוני, מתאים לשלב תשתית/הגדרות ולריצה
+  מקומית על מחשב המשרד. מעבר למסד נתונים אחר (Postgres וכו') אפשרי בעתיד ללא שינוי בממשק ה-API.
+  קובץ הנתונים: `server/data/crm.db` (נוצר אוטומטית, לא נכלל ב-git).
+- **מודל נתונים מרובה-משרדים (multi-tenant)**: כל טבלה מקושרת ל-`office_id`, כך שאפשר לנהל כמה משרדים
+  באותה מערכת בלי תלות זה בזה.
+- **מספר WhatsApp לכל משרד**: הטבלה `whatsapp_connections` שומרת מספר+סוג (`existing`/`dedicated`) לכל
+  משרד בנפרד. אין שום "מספר מרכזי" של ספק המערכת בקוד.
+
+## הרצה מקומית
+
+יש להריץ שני תהליכים במקביל (שני חלונות טרמינל):
+
+```bash
+cd server
+npm install
+npm run dev
+```
+
+```bash
+npm install
+npm run dev
+```
+
+הלקוח רץ על `http://localhost:5173` (proxy אוטומטי ל-`/api` אל השרת בפורט 3001).
+
+## בדיקות
+
+```bash
+cd server
+npm test        # 27 בדיקות: API מלא + מנוע ההחלטה (שעות פעילות, העברה לאדם)
+npx tsc -p tsconfig.json --noEmit   # type-check
+```
+
+בלקוח: `npx tsc -b --noEmit`.
+
+## מה נדרש לחיבור WhatsApp חי (עדיין חסר)
+
+שלב א׳ מכין את השדות והמודל, אך לא מבצע שיחת API אמיתית מול WhatsApp. כדי להפעיל חיבור חי צריך להחליט
+ולספק:
+
+1. **בחירת ספק/API**: WhatsApp Cloud API של Meta (ישיר), או ספק BSP כמו Twilio / 360dialog / Gupshup.
+   כל אחד דורש הרשמה נפרדת ותהליך אימות משלו.
+2. **Business Manager מאומת** מול Meta (או חשבון אצל ה-BSP שנבחר).
+3. **אימות מספר הטלפון** שנבחר בהגדרות (`whatsapp_connections.phone_number`) מול הספק — כולל קוד אימות
+   SMS/שיחה, ורישום שם תצוגה עסקי.
+4. **Access Token / API Key** קבוע לשליחת הודעות, ו-Webhook URL ציבורי (HTTPS) + Verify Token לקבלת
+   הודעות נכנסות.
+5. **תבניות הודעה מאושרות (message templates)** אם רוצים לפתוח שיחה יזומה (לא בתגובה להודעת לקוח) —
+   נדרש אישור Meta מראש לכל תבנית.
+6. **מדיניות פרטיות/שימוש** גלויה ללקוח, בהתאם לדרישות הדין ולתנאי Meta.
+
+בקוד, נקודת החיבור העתידית היא `connection_status` בטבלת `whatsapp_connections`
+(`not_connected` → `pending` → `connected`) ושדה `provider`. שלב הבא (שלב ב׳) יוסיף שירות שילוח/קליטה בפועל
+שמעדכן שדות אלה ומפעיל את מנוע ההחלטה (`server/src/engine/decision.ts`) על הודעות אמיתיות.
+
+## מנוע ההחלטה (Stage A demo)
+
+`POST /api/offices/:officeId/decision-preview` מדגים כיצד ההגדרות משפיעות על ההתנהגות המתוכננת, בלי
+חיבור WhatsApp אמיתי: מקבל זמן (`at`) והודעה לדוגמה, ומחזיר האם השעה בתוך/מחוץ לשעות הפעילות (או חג)
+והאם ההודעה הייתה גורמת להעברה לאדם, ולפי איזה כלל. גם ממשק המשתמש (סעיפים 8 ו-10) כולל כפתורי "בדוק"
+שמריצים תצוגה זו בזמן אמת.

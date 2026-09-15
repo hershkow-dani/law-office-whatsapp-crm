@@ -1,122 +1,103 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import { useCallback, useEffect, useState } from 'react';
+import type { Office, OfficeProfile } from './types';
+import { api } from './api';
+import { OfficeSelector } from './components/OfficeSelector';
+import { IdentitySection } from './components/IdentitySection';
+import { WhatsappSection } from './components/WhatsappSection';
+import { RepresentativeSection } from './components/RepresentativeSection';
+import { DisclosureSection } from './components/DisclosureSection';
+import { StyleSection } from './components/StyleSection';
+import { PracticeAreasSection } from './components/PracticeAreasSection';
+import { ServiceRegionsSection } from './components/ServiceRegionsSection';
+import { HoursSection } from './components/HoursSection';
+import { StaffSection } from './components/StaffSection';
+import { HandoffSection } from './components/HandoffSection';
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [offices, setOffices] = useState<Office[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [profile, setProfile] = useState<OfficeProfile | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const loadOffices = useCallback(async () => {
+    const list = await api.listOffices();
+    setOffices(list);
+    return list;
+  }, []);
+
+  const loadProfile = useCallback(async (id: string) => {
+    try {
+      const p = await api.getOfficeProfile(id);
+      setProfile(p);
+      setLoadError(null);
+    } catch (e) {
+      setLoadError((e as Error).message);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadOffices().then((list) => {
+      if (list.length > 0) setSelectedId(list[0].id);
+    });
+  }, [loadOffices]);
+
+  useEffect(() => {
+    if (selectedId) loadProfile(selectedId);
+    else setProfile(null);
+  }, [selectedId, loadProfile]);
+
+  function refresh() {
+    if (selectedId) loadProfile(selectedId);
+  }
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+    <div className="app-shell">
+      <header className="app-header">
+        <h1>מערכת CRM למשרדי עורכי דין — הגדרות משרד ו-WhatsApp</h1>
+        <p>שלב א׳: תשתית חיבור והגדרות זהות, ללא תלות במספר מרכזי של ספק המערכת.</p>
+      </header>
 
-      <div className="ticks"></div>
+      <OfficeSelector
+        offices={offices}
+        selectedId={selectedId}
+        onSelect={setSelectedId}
+        onCreated={(office) => {
+          setOffices((prev) => [office, ...prev]);
+          setSelectedId(office.id);
+        }}
+      />
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+      {loadError && <p className="status error">{loadError}</p>}
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+      {!selectedId && <p className="hint">אין עדיין משרד. צרו משרד חדש כדי להתחיל.</p>}
+
+      {profile && (
+        <>
+          <WhatsappSection officeId={profile.office.id} connection={profile.whatsapp} onSaved={refresh} />
+          <IdentitySection office={profile.office} onSaved={refresh} />
+          <RepresentativeSection officeId={profile.office.id} representative={profile.representative} onSaved={refresh} />
+          <DisclosureSection officeId={profile.office.id} disclosure={profile.disclosure} onSaved={refresh} />
+          <StyleSection officeId={profile.office.id} style={profile.style} onSaved={refresh} />
+          <PracticeAreasSection officeId={profile.office.id} areas={profile.practiceAreas} onSaved={refresh} />
+          <ServiceRegionsSection
+            officeId={profile.office.id}
+            config={profile.serviceRegionsConfig}
+            regions={profile.serviceRegions}
+            onSaved={refresh}
+          />
+          <HoursSection
+            officeId={profile.office.id}
+            businessHours={profile.businessHours}
+            holidays={profile.holidays}
+            afterHoursPolicy={profile.afterHoursPolicy}
+            onSaved={refresh}
+          />
+          <StaffSection officeId={profile.office.id} staff={profile.staff} practiceAreas={profile.practiceAreas} onSaved={refresh} />
+          <HandoffSection officeId={profile.office.id} rules={profile.handoffRules} onSaved={refresh} />
+        </>
+      )}
+    </div>
+  );
 }
 
-export default App
+export default App;
