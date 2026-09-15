@@ -6,6 +6,8 @@ import type {
   CaseTask,
   Conversation,
   ConversationStatus,
+  CrmDocument,
+  DocumentTemplate,
   Message,
   MessageDirection,
   MessageSenderType,
@@ -296,6 +298,92 @@ function mapTask(r: any): CaseTask {
     dueDate: r.due_date,
     assignedStaffId: r.assigned_staff_id,
     status: r.status,
+    createdAt: r.created_at,
+  };
+}
+
+// ---- document templates ----
+
+export function createDocumentTemplate(officeId: string, input: { name: string; body: string }): DocumentTemplate {
+  const id = newId();
+  const ts = now();
+  db.prepare(`INSERT INTO document_templates (id, office_id, name, body, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`).run(
+    id,
+    officeId,
+    input.name,
+    input.body,
+    ts,
+    ts
+  );
+  return getDocumentTemplate(officeId, id)!;
+}
+
+export function listDocumentTemplates(officeId: string): DocumentTemplate[] {
+  const rows = db.prepare(`SELECT * FROM document_templates WHERE office_id = ? ORDER BY created_at DESC`).all(officeId) as any[];
+  return rows.map(mapTemplate);
+}
+
+export function getDocumentTemplate(officeId: string, id: string): DocumentTemplate | null {
+  const row = db.prepare(`SELECT * FROM document_templates WHERE office_id = ? AND id = ?`).get(officeId, id) as any;
+  return row ? mapTemplate(row) : null;
+}
+
+export function updateDocumentTemplate(officeId: string, id: string, patch: Partial<{ name: string; body: string }>): DocumentTemplate | null {
+  const existing = getDocumentTemplate(officeId, id);
+  if (!existing) return null;
+  const ts = now();
+  db.prepare(`UPDATE document_templates SET name = ?, body = ?, updated_at = ? WHERE office_id = ? AND id = ?`).run(
+    patch.name ?? existing.name,
+    patch.body ?? existing.body,
+    ts,
+    officeId,
+    id
+  );
+  return getDocumentTemplate(officeId, id);
+}
+
+export function deleteDocumentTemplate(officeId: string, id: string): boolean {
+  const result = db.prepare(`DELETE FROM document_templates WHERE office_id = ? AND id = ?`).run(officeId, id);
+  return result.changes > 0;
+}
+
+function mapTemplate(r: any): DocumentTemplate {
+  return { id: r.id, officeId: r.office_id, name: r.name, body: r.body, createdAt: r.created_at, updatedAt: r.updated_at };
+}
+
+// ---- documents ----
+
+export function createDocument(
+  officeId: string,
+  input: { caseId?: string | null; templateId?: string | null; title: string; content: string; missingFields: string[] }
+): CrmDocument {
+  const id = newId();
+  const ts = now();
+  db.prepare(
+    `INSERT INTO documents (id, office_id, case_id, template_id, title, content, missing_fields, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(id, officeId, input.caseId ?? null, input.templateId ?? null, input.title, input.content, JSON.stringify(input.missingFields), ts);
+  return getDocument(officeId, id)!;
+}
+
+export function listDocumentsForCase(officeId: string, caseId: string): CrmDocument[] {
+  const rows = db.prepare(`SELECT * FROM documents WHERE office_id = ? AND case_id = ? ORDER BY created_at DESC`).all(officeId, caseId) as any[];
+  return rows.map(mapDocument);
+}
+
+export function getDocument(officeId: string, id: string): CrmDocument | null {
+  const row = db.prepare(`SELECT * FROM documents WHERE office_id = ? AND id = ?`).get(officeId, id) as any;
+  return row ? mapDocument(row) : null;
+}
+
+function mapDocument(r: any): CrmDocument {
+  return {
+    id: r.id,
+    officeId: r.office_id,
+    caseId: r.case_id,
+    templateId: r.template_id,
+    title: r.title,
+    content: r.content,
+    missingFields: JSON.parse(r.missing_fields),
     createdAt: r.created_at,
   };
 }

@@ -166,6 +166,26 @@ export interface CaseTask {
   createdAt: string;
 }
 
+export interface DocumentTemplate {
+  id: string;
+  officeId: string;
+  name: string;
+  body: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CrmDocument {
+  id: string;
+  officeId: string;
+  caseId: string | null;
+  templateId: string | null;
+  title: string;
+  content: string;
+  missingFields: string[];
+  createdAt: string;
+}
+
 export interface ReportsSummary {
   conversations: { total: number; auto: number; pendingHuman: number; closed: number };
   cases: { total: number; new: number; inProgress: number; waitingClient: number; closed: number };

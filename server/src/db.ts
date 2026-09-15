@@ -168,4 +168,24 @@ CREATE TABLE IF NOT EXISTS case_tasks (
   status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open','done')),
   created_at TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS document_templates (
+  id TEXT PRIMARY KEY,
+  office_id TEXT NOT NULL REFERENCES offices(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  body TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS documents (
+  id TEXT PRIMARY KEY,
+  office_id TEXT NOT NULL REFERENCES offices(id) ON DELETE CASCADE,
+  case_id TEXT REFERENCES cases(id) ON DELETE CASCADE,
+  template_id TEXT REFERENCES document_templates(id) ON DELETE SET NULL,
+  title TEXT NOT NULL,
+  content TEXT NOT NULL,
+  missing_fields TEXT NOT NULL DEFAULT '[]',
+  created_at TEXT NOT NULL
+);
 `);

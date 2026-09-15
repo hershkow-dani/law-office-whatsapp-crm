@@ -2,6 +2,7 @@ import { Router } from 'express';
 import * as repo from '../repo.js';
 import * as crm from '../repoCrm.js';
 import { scoreConversation } from '../engine/scoring.js';
+import { buildDocumentContext, renderTemplate } from '../engine/documentRender.js';
 import type { CaseStatus } from '../types.js';
 
 export const casesRouter = Router({ mergeParams: true });
@@ -111,6 +112,46 @@ casesRouter.patch('/:caseId/tasks/:taskId', (req, res) => {
   const updated = crm.updateTask(id, req.params.taskId, req.body ?? {});
   if (!updated) return res.status(404).json({ error: 'task_not_found' });
   res.json(updated);
+});
+
+casesRouter.get('/:caseId/documents', (req, res) => {
+  const id = officeOr404(req, res);
+  if (!id) return;
+  const caseRecord = crm.getCase(id, req.params.caseId);
+  if (!caseRecord) return res.status(404).json({ error: 'case_not_found' });
+  res.json(crm.listDocumentsForCase(id, caseRecord.id));
+});
+
+/**
+ * Generates a document for a case from one of the office's templates,
+ * filling {{placeholders}} from the case's own fields and, if linked, its
+ * conversation's contact details (see engine/documentRender.ts). Any
+ * placeholder with no available value is left in the text and reported in
+ * `missingFields` so office staff know exactly what to fill in by hand.
+ */
+casesRouter.post('/:caseId/documents', (req, res) => {
+  const id = officeOr404(req, res);
+  if (!id) return;
+  const caseRecord = crm.getCase(id, req.params.caseId);
+  if (!caseRecord) return res.status(404).json({ error: 'case_not_found' });
+
+  const { templateId } = req.body ?? {};
+  const template = templateId ? crm.getDocumentTemplate(id, templateId) : null;
+  if (!template) return res.status(400).json({ error: 'template_not_found' });
+
+  const profile = repo.getOfficeProfile(id)!;
+  const conversation = caseRecord.conversationId ? crm.getConversation(id, caseRecord.conversationId) : null;
+  const context = buildDocumentContext(profile, caseRecord, conversation);
+  const { content, missingFields } = renderTemplate(template.body, context);
+
+  const document = crm.createDocument(id, {
+    caseId: caseRecord.id,
+    templateId: template.id,
+    title: `${template.name} — ${caseRecord.title}`,
+    content,
+    missingFields,
+  });
+  res.status(201).json(document);
 });
 
 export const reportsRouter = Router({ mergeParams: true });

@@ -3,6 +3,7 @@ import cors from 'cors';
 import { officesRouter } from './routes/offices.js';
 import { conversationsRouter } from './routes/conversations.js';
 import { casesRouter, reportsRouter } from './routes/cases.js';
+import { documentTemplatesRouter, documentsRouter } from './routes/documents.js';
 
 export function createApp() {
   const app = express();
@@ -14,6 +15,8 @@ export function createApp() {
   app.use('/api/offices/:officeId/conversations', conversationsRouter);
   app.use('/api/offices/:officeId/cases', casesRouter);
   app.use('/api/offices/:officeId/reports', reportsRouter);
+  app.use('/api/offices/:officeId/document-templates', documentTemplatesRouter);
+  app.use('/api/offices/:officeId/documents', documentsRouter);
 
   return app;
 }

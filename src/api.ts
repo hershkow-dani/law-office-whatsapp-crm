@@ -19,6 +19,8 @@ import type {
   CaseTask,
   CaseStatus,
   ReportsSummary,
+  DocumentTemplate,
+  CrmDocument,
 } from './types';
 
 async function http<T>(url: string, options?: RequestInit): Promise<T> {
@@ -125,6 +127,20 @@ export const api = {
     http<CaseTask>(`${base}/${id}/cases/${caseId}/tasks/${taskId}`, { method: 'PATCH', body: JSON.stringify(input) }),
 
   getReportsSummary: (id: string) => http<ReportsSummary>(`${base}/${id}/reports/summary`),
+
+  // ---- Stage C: document templates & generation ----
+
+  listDocumentTemplates: (id: string) => http<DocumentTemplate[]>(`${base}/${id}/document-templates`),
+  createDocumentTemplate: (id: string, input: { name: string; body: string }) =>
+    http<DocumentTemplate>(`${base}/${id}/document-templates`, { method: 'POST', body: JSON.stringify(input) }),
+  updateDocumentTemplate: (id: string, templateId: string, input: Partial<{ name: string; body: string }>) =>
+    http<DocumentTemplate>(`${base}/${id}/document-templates/${templateId}`, { method: 'PATCH', body: JSON.stringify(input) }),
+  deleteDocumentTemplate: (id: string, templateId: string) =>
+    http<void>(`${base}/${id}/document-templates/${templateId}`, { method: 'DELETE' }),
+
+  listCaseDocuments: (id: string, caseId: string) => http<CrmDocument[]>(`${base}/${id}/cases/${caseId}/documents`),
+  generateDocument: (id: string, caseId: string, input: { templateId: string }) =>
+    http<CrmDocument>(`${base}/${id}/cases/${caseId}/documents`, { method: 'POST', body: JSON.stringify(input) }),
 };
 
 type TaskStatusUpdate = 'open' | 'done';

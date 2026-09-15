@@ -15,6 +15,7 @@ import { HandoffSection } from './components/HandoffSection';
 import { ConversationsPanel } from './components/ConversationsPanel';
 import { CasesPanel } from './components/CasesPanel';
 import { ReportsPanel } from './components/ReportsPanel';
+import { DocumentTemplatesSection } from './components/DocumentTemplatesSection';
 
 type Tab = 'settings' | 'crm';
 
@@ -118,6 +119,7 @@ function App() {
           />
           <StaffSection officeId={profile.office.id} staff={profile.staff} practiceAreas={profile.practiceAreas} onSaved={refresh} />
           <HandoffSection officeId={profile.office.id} rules={profile.handoffRules} onSaved={refresh} />
+          <DocumentTemplatesSection officeId={profile.office.id} />
         </>
       )}
 
