@@ -37,6 +37,7 @@ export const api = {
   getOfficeProfile: (id: string) => http<OfficeProfile>(`${base}/${id}`),
   updateOffice: (id: string, input: Partial<{ name: string; logoUrl: string | null; address: string | null }>) =>
     http<Office>(`${base}/${id}`, { method: 'PATCH', body: JSON.stringify(input) }),
+  deleteOffice: (id: string) => http<void>(`${base}/${id}`, { method: 'DELETE' }),
 
   setWhatsapp: (
     id: string,

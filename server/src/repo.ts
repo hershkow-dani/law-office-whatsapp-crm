@@ -36,6 +36,11 @@ export function listOffices(): Office[] {
   return rows.map(mapOffice);
 }
 
+export function deleteOffice(id: string): boolean {
+  const result = db.prepare(`DELETE FROM offices WHERE id = ?`).run(id);
+  return result.changes > 0;
+}
+
 export function getOffice(id: string): Office | null {
   const row = db.prepare(`SELECT * FROM offices WHERE id = ?`).get(id) as any;
   return row ? mapOffice(row) : null;

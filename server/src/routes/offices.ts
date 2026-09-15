@@ -40,6 +40,11 @@ officesRouter.patch('/:officeId', (req, res) => {
   res.json(updated);
 });
 
+officesRouter.delete('/:officeId', (req, res) => {
+  const ok = repo.deleteOffice(req.params.officeId);
+  res.status(ok ? 204 : 404).end();
+});
+
 // ---- whatsapp ----
 
 officesRouter.put('/:officeId/whatsapp', (req, res) => {

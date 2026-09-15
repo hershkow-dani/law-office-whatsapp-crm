@@ -28,6 +28,22 @@ describe('offices API', () => {
     expect(res.status).toBe(404);
   });
 
+  it('deletes an office and cascades its nested settings', async () => {
+    const office = await createTestOffice();
+    await request(app).post(`/api/offices/${office.id}/practice-areas`).send({ name: 'דיני משפחה' });
+
+    const del = await request(app).delete(`/api/offices/${office.id}`);
+    expect(del.status).toBe(204);
+
+    const get = await request(app).get(`/api/offices/${office.id}`);
+    expect(get.status).toBe(404);
+  });
+
+  it('returns 404 when deleting an office that does not exist', async () => {
+    const res = await request(app).delete('/api/offices/does-not-exist');
+    expect(res.status).toBe(404);
+  });
+
   it('updates office identity fields', async () => {
     const office = await createTestOffice();
     const res = await request(app)

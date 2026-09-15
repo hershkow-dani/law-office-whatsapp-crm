@@ -7,11 +7,13 @@ interface Props {
   selectedId: string | null;
   onSelect: (id: string) => void;
   onCreated: (office: Office) => void;
+  onDeleted: (id: string) => void;
 }
 
-export function OfficeSelector({ offices, selectedId, onSelect, onCreated }: Props) {
+export function OfficeSelector({ offices, selectedId, onSelect, onCreated, onDeleted }: Props) {
   const [newName, setNewName] = useState('');
   const [creating, setCreating] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function handleCreate() {
@@ -26,6 +28,22 @@ export function OfficeSelector({ offices, selectedId, onSelect, onCreated }: Pro
       setError((e as Error).message);
     } finally {
       setCreating(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (!selectedId) return;
+    const office = offices.find((o) => o.id === selectedId);
+    if (!office || !window.confirm(`למחוק את המשרד "${office.name}" וכל הגדרותיו? הפעולה בלתי הפיכה.`)) return;
+    setDeleting(true);
+    setError(null);
+    try {
+      await api.deleteOffice(selectedId);
+      onDeleted(selectedId);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -52,6 +70,11 @@ export function OfficeSelector({ offices, selectedId, onSelect, onCreated }: Pro
       <button className="primary" onClick={handleCreate} disabled={creating || !newName.trim()}>
         {creating ? 'יוצר...' : 'צור משרד חדש'}
       </button>
+      {selectedId && (
+        <button className="danger" onClick={handleDelete} disabled={deleting}>
+          {deleting ? 'מוחק...' : 'מחק משרד נבחר'}
+        </button>
+      )}
       {error && <span className="status error">{error}</span>}
     </div>
   );

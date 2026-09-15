@@ -65,6 +65,13 @@ function App() {
           setOffices((prev) => [office, ...prev]);
           setSelectedId(office.id);
         }}
+        onDeleted={(id) => {
+          setOffices((prev) => {
+            const remaining = prev.filter((o) => o.id !== id);
+            setSelectedId(remaining[0]?.id ?? null);
+            return remaining;
+          });
+        }}
       />
 
       {loadError && <p className="status error">{loadError}</p>}
