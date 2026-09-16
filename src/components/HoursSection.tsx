@@ -1,9 +1,78 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { AfterHoursPolicy, BusinessHour, Holiday } from '../types';
 import { api } from '../api';
 import { useSaveStatus } from '../useSaveStatus';
+import { ImageUploadField } from './ImageUploadField';
 
 const DAY_LABELS = ['יום א׳', 'יום ב׳', 'יום ג׳', 'יום ד׳', 'יום ה׳', 'יום ו׳', 'שבת'];
+const MAX_LOGO_BYTES = 2 * 1024 * 1024; // 2MB
+
+function HolidayLogo({ holiday, onUploaded }: { holiday: Holiday; onUploaded: (logoUrl: string) => void }) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setError(null);
+
+    if (!file.type.startsWith('image/')) {
+      setError('יש לבחור קובץ תמונה');
+      return;
+    }
+    if (file.size > MAX_LOGO_BYTES) {
+      setError('הקובץ גדול מדי (מקס׳ 2MB)');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => onUploaded(reader.result as string);
+    reader.onerror = () => setError('שגיאה בקריאת הקובץ');
+    reader.readAsDataURL(file);
+  }
+
+  return (
+    <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+      <button
+        type="button"
+        onClick={() => fileInputRef.current?.click()}
+        title="העלאת/החלפת לוגו לחג/חופשה"
+        style={{ padding: 0, border: 'none', background: 'none', cursor: 'pointer', flexShrink: 0 }}
+      >
+        {holiday.logoUrl ? (
+          <img
+            src={holiday.logoUrl}
+            alt={holiday.name}
+            style={{ height: 24, width: 24, objectFit: 'contain', border: '1px solid var(--border)', borderRadius: 5, background: '#fff' }}
+          />
+        ) : (
+          <span
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              height: 24,
+              width: 24,
+              borderRadius: 5,
+              border: '1px dashed var(--border)',
+              fontSize: 9,
+              color: 'var(--muted)',
+            }}
+          >
+            +
+          </span>
+        )}
+      </button>
+      <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileChange} style={{ display: 'none' }} />
+      {error && (
+        <span className="status error" style={{ fontSize: 10 }}>
+          {error}
+        </span>
+      )}
+    </span>
+  );
+}
 
 type DayRow = { dayOfWeek: number; isClosed: boolean; openTime: string | null; closeTime: string | null };
 
@@ -38,6 +107,7 @@ export function HoursSection({
   const [holidayDate, setHolidayDate] = useState('');
   const [holidayName, setHolidayName] = useState('');
   const [holidayRecurring, setHolidayRecurring] = useState(false);
+  const [holidayLogoUrl, setHolidayLogoUrl] = useState('');
   const [preview, setPreview] = useState<string | null>(null);
 
   const hoursStatus = useSaveStatus();
@@ -65,12 +135,23 @@ export function HoursSection({
   function addHoliday() {
     if (!holidayDate || !holidayName.trim()) return;
     holidayStatus.run(async () => {
-      await api.addHoliday(officeId, { date: holidayDate, name: holidayName.trim(), isRecurringAnnual: holidayRecurring });
+      await api.addHoliday(officeId, {
+        date: holidayDate,
+        name: holidayName.trim(),
+        isRecurringAnnual: holidayRecurring,
+        logoUrl: holidayLogoUrl || null,
+      });
       setHolidayDate('');
       setHolidayName('');
       setHolidayRecurring(false);
+      setHolidayLogoUrl('');
       onSaved();
     });
+  }
+
+  async function uploadHolidayLogo(holidayId: string, newLogoUrl: string) {
+    await api.updateHoliday(officeId, holidayId, { logoUrl: newLogoUrl });
+    onSaved();
   }
 
   async function removeHoliday(id: string) {
@@ -128,7 +209,8 @@ export function HoursSection({
       <h2 style={{ fontSize: 14 }}>חגים וחופשות</h2>
       {holidays.map((h) => (
         <div className="list-item" key={h.id}>
-          <span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <HolidayLogo holiday={h} onUploaded={(url) => uploadHolidayLogo(h.id, url)} />
             {h.date} — {h.name} {h.isRecurringAnnual && <span className="pill">חוזר מדי שנה</span>}
           </span>
           <button className="danger" onClick={() => removeHoliday(h.id)}>
@@ -151,6 +233,10 @@ export function HoursSection({
             חוזר מדי שנה
           </label>
         </div>
+      </div>
+      <div className="field">
+        <label>לוגו לחג/חופשה (אופציונלי)</label>
+        <ImageUploadField value={holidayLogoUrl} onChange={setHolidayLogoUrl} alt="לוגו חג/חופשה" size={40} />
       </div>
       <div className="toolbar">
         <button className="primary" onClick={addHoliday} disabled={!holidayDate || !holidayName.trim()}>

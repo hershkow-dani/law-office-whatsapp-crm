@@ -188,6 +188,21 @@ describe('offices API', () => {
     expect(del.status).toBe(204);
   });
 
+  it('creates a holiday with a logo and lets it be replaced via PATCH', async () => {
+    const office = await createTestOffice();
+    const created = await request(app)
+      .post(`/api/offices/${office.id}/holidays`)
+      .send({ date: '2026-09-23', name: 'ראש השנה', logoUrl: 'data:image/png;base64,AAAA' });
+    expect(created.body.logoUrl).toBe('data:image/png;base64,AAAA');
+
+    const patched = await request(app)
+      .patch(`/api/offices/${office.id}/holidays/${created.body.id}`)
+      .send({ logoUrl: 'data:image/png;base64,BBBB' });
+    expect(patched.status).toBe(200);
+    expect(patched.body.logoUrl).toBe('data:image/png;base64,BBBB');
+    expect(patched.body.name).toBe('ראש השנה');
+  });
+
   it('sets after-hours policy', async () => {
     const office = await createTestOffice();
     const res = await request(app)

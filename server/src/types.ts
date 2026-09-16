@@ -87,6 +87,7 @@ export interface Holiday {
   date: string; // ISO date "YYYY-MM-DD"
   name: string;
   isRecurringAnnual: boolean;
+  logoUrl: string | null;
 }
 
 export interface AfterHoursPolicy {

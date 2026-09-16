@@ -170,9 +170,17 @@ officesRouter.get('/:officeId/holidays', (req, res) => {
 officesRouter.post('/:officeId/holidays', (req, res) => {
   const id = officeOr404(req, res);
   if (!id) return;
-  const { date, name, isRecurringAnnual } = req.body ?? {};
+  const { date, name, isRecurringAnnual, logoUrl } = req.body ?? {};
   if (!date || !name) return res.status(400).json({ error: 'date_and_name_required' });
-  res.status(201).json(repo.addHoliday(id, { date, name, isRecurringAnnual }));
+  res.status(201).json(repo.addHoliday(id, { date, name, isRecurringAnnual, logoUrl }));
+});
+
+officesRouter.patch('/:officeId/holidays/:holidayId', (req, res) => {
+  const id = officeOr404(req, res);
+  if (!id) return;
+  const updated = repo.updateHoliday(id, req.params.holidayId, req.body ?? {});
+  if (!updated) return res.status(404).json({ error: 'holiday_not_found' });
+  res.json(updated);
 });
 
 officesRouter.delete('/:officeId/holidays/:holidayId', (req, res) => {

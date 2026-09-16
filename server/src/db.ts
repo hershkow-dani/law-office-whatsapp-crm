@@ -94,7 +94,8 @@ CREATE TABLE IF NOT EXISTS holidays (
   office_id TEXT NOT NULL REFERENCES offices(id) ON DELETE CASCADE,
   date TEXT NOT NULL,
   name TEXT NOT NULL,
-  is_recurring_annual INTEGER NOT NULL DEFAULT 0
+  is_recurring_annual INTEGER NOT NULL DEFAULT 0,
+  logo_url TEXT
 );
 
 CREATE TABLE IF NOT EXISTS after_hours_policy (

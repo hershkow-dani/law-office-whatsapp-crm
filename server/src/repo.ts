@@ -326,16 +326,39 @@ export function listHolidays(officeId: string): Holiday[] {
   return rows.map(mapHoliday);
 }
 
-export function addHoliday(officeId: string, input: { date: string; name: string; isRecurringAnnual?: boolean }): Holiday {
+export function addHoliday(
+  officeId: string,
+  input: { date: string; name: string; isRecurringAnnual?: boolean; logoUrl?: string | null }
+): Holiday {
   const id = newId();
-  db.prepare(`INSERT INTO holidays (id, office_id, date, name, is_recurring_annual) VALUES (?, ?, ?, ?, ?)`).run(
+  db.prepare(`INSERT INTO holidays (id, office_id, date, name, is_recurring_annual, logo_url) VALUES (?, ?, ?, ?, ?, ?)`).run(
     id,
     officeId,
     input.date,
     input.name,
-    input.isRecurringAnnual ? 1 : 0
+    input.isRecurringAnnual ? 1 : 0,
+    input.logoUrl ?? null
   );
-  return { id, officeId, date: input.date, name: input.name, isRecurringAnnual: !!input.isRecurringAnnual };
+  return { id, officeId, date: input.date, name: input.name, isRecurringAnnual: !!input.isRecurringAnnual, logoUrl: input.logoUrl ?? null };
+}
+
+export function updateHoliday(
+  officeId: string,
+  id: string,
+  patch: Partial<{ date: string; name: string; isRecurringAnnual: boolean; logoUrl: string | null }>
+): Holiday | null {
+  const row = db.prepare(`SELECT * FROM holidays WHERE office_id = ? AND id = ?`).get(officeId, id) as any;
+  if (!row) return null;
+  const existing = mapHoliday(row);
+  db.prepare(`UPDATE holidays SET date = ?, name = ?, is_recurring_annual = ?, logo_url = ? WHERE office_id = ? AND id = ?`).run(
+    patch.date ?? existing.date,
+    patch.name ?? existing.name,
+    patch.isRecurringAnnual !== undefined ? (patch.isRecurringAnnual ? 1 : 0) : existing.isRecurringAnnual ? 1 : 0,
+    patch.logoUrl !== undefined ? patch.logoUrl : existing.logoUrl,
+    officeId,
+    id
+  );
+  return mapHoliday(db.prepare(`SELECT * FROM holidays WHERE office_id = ? AND id = ?`).get(officeId, id) as any);
 }
 
 export function deleteHoliday(officeId: string, id: string): boolean {
@@ -344,7 +367,7 @@ export function deleteHoliday(officeId: string, id: string): boolean {
 }
 
 function mapHoliday(r: any): Holiday {
-  return { id: r.id, officeId: r.office_id, date: r.date, name: r.name, isRecurringAnnual: !!r.is_recurring_annual };
+  return { id: r.id, officeId: r.office_id, date: r.date, name: r.name, isRecurringAnnual: !!r.is_recurring_annual, logoUrl: r.logo_url };
 }
 
 // ---- after hours policy ----

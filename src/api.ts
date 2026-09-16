@@ -85,8 +85,10 @@ export const api = {
   setBusinessHours: (id: string, hours: Omit<BusinessHour, 'id' | 'officeId'>[]) =>
     http<BusinessHour[]>(`${base}/${id}/business-hours`, { method: 'PUT', body: JSON.stringify({ hours }) }),
 
-  addHoliday: (id: string, input: { date: string; name: string; isRecurringAnnual?: boolean }) =>
+  addHoliday: (id: string, input: { date: string; name: string; isRecurringAnnual?: boolean; logoUrl?: string | null }) =>
     http<Holiday>(`${base}/${id}/holidays`, { method: 'POST', body: JSON.stringify(input) }),
+  updateHoliday: (id: string, holidayId: string, input: Partial<{ name: string; date: string; isRecurringAnnual: boolean; logoUrl: string | null }>) =>
+    http<Holiday>(`${base}/${id}/holidays/${holidayId}`, { method: 'PATCH', body: JSON.stringify(input) }),
   deleteHoliday: (id: string, holidayId: string) => http<void>(`${base}/${id}/holidays/${holidayId}`, { method: 'DELETE' }),
 
   setAfterHours: (id: string, input: { inHoursBehavior: string; outOfHoursBehavior: string; outOfHoursMessage?: string | null }) =>

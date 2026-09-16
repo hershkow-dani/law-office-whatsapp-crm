@@ -86,6 +86,7 @@ export interface Holiday {
   date: string;
   name: string;
   isRecurringAnnual: boolean;
+  logoUrl: string | null;
 }
 
 export interface AfterHoursPolicy {
