@@ -181,12 +181,14 @@ describe('offices API', () => {
       .post(`/api/offices/${office.id}/staff`)
       .send({ name: 'עו״ד ישראלי', role: 'lawyer', permissions: ['manage_cases'], responsibilityAreas: ['דיני משפחה'] });
     expect(add.status).toBe(201);
+    expect(add.body.photoUrl).toBeNull();
 
     const patch = await request(app)
       .patch(`/api/offices/${office.id}/staff/${add.body.id}`)
-      .send({ isActive: false });
+      .send({ isActive: false, photoUrl: 'data:image/png;base64,AAAA' });
     expect(patch.status).toBe(200);
     expect(patch.body.isActive).toBe(false);
+    expect(patch.body.photoUrl).toBe('data:image/png;base64,AAAA');
 
     const del = await request(app).delete(`/api/offices/${office.id}/staff/${add.body.id}`);
     expect(del.status).toBe(204);

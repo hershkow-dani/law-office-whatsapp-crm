@@ -347,11 +347,18 @@ export function listStaff(officeId: string): StaffMember[] {
 
 export function addStaff(
   officeId: string,
-  input: { name: string; role: string; permissions?: string[]; responsibilityAreas?: string[]; isActive?: boolean }
+  input: {
+    name: string;
+    role: string;
+    permissions?: string[];
+    responsibilityAreas?: string[];
+    isActive?: boolean;
+    photoUrl?: string | null;
+  }
 ): StaffMember {
   const id = newId();
   db.prepare(
-    `INSERT INTO staff (id, office_id, name, role, permissions, responsibility_areas, is_active) VALUES (?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO staff (id, office_id, name, role, permissions, responsibility_areas, is_active, photo_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     id,
     officeId,
@@ -359,7 +366,8 @@ export function addStaff(
     input.role,
     JSON.stringify(input.permissions ?? []),
     JSON.stringify(input.responsibilityAreas ?? []),
-    input.isActive === false ? 0 : 1
+    input.isActive === false ? 0 : 1,
+    input.photoUrl ?? null
   );
   return getStaffMember(officeId, id)!;
 }
@@ -367,18 +375,26 @@ export function addStaff(
 export function updateStaff(
   officeId: string,
   id: string,
-  input: Partial<{ name: string; role: string; permissions: string[]; responsibilityAreas: string[]; isActive: boolean }>
+  input: Partial<{
+    name: string;
+    role: string;
+    permissions: string[];
+    responsibilityAreas: string[];
+    isActive: boolean;
+    photoUrl: string | null;
+  }>
 ): StaffMember | null {
   const existing = getStaffMember(officeId, id);
   if (!existing) return null;
   db.prepare(
-    `UPDATE staff SET name = ?, role = ?, permissions = ?, responsibility_areas = ?, is_active = ? WHERE office_id = ? AND id = ?`
+    `UPDATE staff SET name = ?, role = ?, permissions = ?, responsibility_areas = ?, is_active = ?, photo_url = ? WHERE office_id = ? AND id = ?`
   ).run(
     input.name ?? existing.name,
     input.role ?? existing.role,
     JSON.stringify(input.permissions ?? existing.permissions),
     JSON.stringify(input.responsibilityAreas ?? existing.responsibilityAreas),
     input.isActive !== undefined ? (input.isActive ? 1 : 0) : existing.isActive ? 1 : 0,
+    input.photoUrl !== undefined ? input.photoUrl : existing.photoUrl,
     officeId,
     id
   );
@@ -404,6 +420,7 @@ function mapStaff(r: any): StaffMember {
     permissions: JSON.parse(r.permissions),
     responsibilityAreas: JSON.parse(r.responsibility_areas),
     isActive: !!r.is_active,
+    photoUrl: r.photo_url,
   };
 }
 

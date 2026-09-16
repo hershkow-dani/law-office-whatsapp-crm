@@ -197,9 +197,9 @@ officesRouter.get('/:officeId/staff', (req, res) => {
 officesRouter.post('/:officeId/staff', (req, res) => {
   const id = officeOr404(req, res);
   if (!id) return;
-  const { name, role, permissions, responsibilityAreas, isActive } = req.body ?? {};
+  const { name, role, permissions, responsibilityAreas, isActive, photoUrl } = req.body ?? {};
   if (!name || !role) return res.status(400).json({ error: 'name_and_role_required' });
-  res.status(201).json(repo.addStaff(id, { name, role, permissions, responsibilityAreas, isActive }));
+  res.status(201).json(repo.addStaff(id, { name, role, permissions, responsibilityAreas, isActive, photoUrl }));
 });
 
 officesRouter.patch('/:officeId/staff/:staffId', (req, res) => {

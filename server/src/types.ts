@@ -103,6 +103,7 @@ export interface StaffMember {
   permissions: string[];
   responsibilityAreas: string[];
   isActive: boolean;
+  photoUrl: string | null;
 }
 
 export interface HandoffRule {

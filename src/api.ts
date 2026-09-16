@@ -90,8 +90,10 @@ export const api = {
   setAfterHours: (id: string, input: { inHoursBehavior: string; outOfHoursBehavior: string; outOfHoursMessage?: string | null }) =>
     http<AfterHoursPolicy>(`${base}/${id}/after-hours`, { method: 'PUT', body: JSON.stringify(input) }),
 
-  addStaff: (id: string, input: { name: string; role: string; permissions?: string[]; responsibilityAreas?: string[] }) =>
-    http<StaffMember>(`${base}/${id}/staff`, { method: 'POST', body: JSON.stringify(input) }),
+  addStaff: (
+    id: string,
+    input: { name: string; role: string; permissions?: string[]; responsibilityAreas?: string[]; photoUrl?: string | null }
+  ) => http<StaffMember>(`${base}/${id}/staff`, { method: 'POST', body: JSON.stringify(input) }),
   updateStaff: (id: string, staffId: string, input: Partial<StaffMember>) =>
     http<StaffMember>(`${base}/${id}/staff/${staffId}`, { method: 'PATCH', body: JSON.stringify(input) }),
   deleteStaff: (id: string, staffId: string) => http<void>(`${base}/${id}/staff/${staffId}`, { method: 'DELETE' }),

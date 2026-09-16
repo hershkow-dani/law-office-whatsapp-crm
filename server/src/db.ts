@@ -110,7 +110,8 @@ CREATE TABLE IF NOT EXISTS staff (
   role TEXT NOT NULL,
   permissions TEXT NOT NULL DEFAULT '[]',
   responsibility_areas TEXT NOT NULL DEFAULT '[]',
-  is_active INTEGER NOT NULL DEFAULT 1
+  is_active INTEGER NOT NULL DEFAULT 1,
+  photo_url TEXT
 );
 
 CREATE TABLE IF NOT EXISTS handoff_rules (
