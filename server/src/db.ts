@@ -124,7 +124,9 @@ CREATE TABLE IF NOT EXISTS handoff_rules (
   value TEXT NOT NULL,
   action TEXT NOT NULL DEFAULT 'transfer_to_human',
   preserve_context INTEGER NOT NULL DEFAULT 1,
-  is_active INTEGER NOT NULL DEFAULT 1
+  is_active INTEGER NOT NULL DEFAULT 1,
+  contact_name TEXT,
+  logo_url TEXT
 );
 
 CREATE TABLE IF NOT EXISTS conversations (

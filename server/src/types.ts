@@ -117,6 +117,8 @@ export interface HandoffRule {
   action: string;
   preserveContext: boolean;
   isActive: boolean;
+  contactName: string | null;
+  logoUrl: string | null;
 }
 
 export interface OfficeProfile {

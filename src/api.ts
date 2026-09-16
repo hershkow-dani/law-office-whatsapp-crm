@@ -102,8 +102,10 @@ export const api = {
     http<StaffMember>(`${base}/${id}/staff/${staffId}`, { method: 'PATCH', body: JSON.stringify(input) }),
   deleteStaff: (id: string, staffId: string) => http<void>(`${base}/${id}/staff/${staffId}`, { method: 'DELETE' }),
 
-  addHandoffRule: (id: string, input: { ruleType: HandoffRule['ruleType']; value: string; preserveContext?: boolean }) =>
-    http<HandoffRule>(`${base}/${id}/handoff-rules`, { method: 'POST', body: JSON.stringify(input) }),
+  addHandoffRule: (
+    id: string,
+    input: { ruleType: HandoffRule['ruleType']; value: string; preserveContext?: boolean; contactName?: string | null; logoUrl?: string | null }
+  ) => http<HandoffRule>(`${base}/${id}/handoff-rules`, { method: 'POST', body: JSON.stringify(input) }),
   updateHandoffRule: (id: string, ruleId: string, input: Partial<HandoffRule>) =>
     http<HandoffRule>(`${base}/${id}/handoff-rules/${ruleId}`, { method: 'PATCH', body: JSON.stringify(input) }),
   deleteHandoffRule: (id: string, ruleId: string) => http<void>(`${base}/${id}/handoff-rules/${ruleId}`, { method: 'DELETE' }),

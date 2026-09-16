@@ -491,11 +491,19 @@ export function listHandoffRules(officeId: string): HandoffRule[] {
 
 export function addHandoffRule(
   officeId: string,
-  input: { ruleType: 'urgency' | 'area' | 'explicit_request' | 'keyword'; value: string; action?: string; preserveContext?: boolean; isActive?: boolean }
+  input: {
+    ruleType: 'urgency' | 'area' | 'explicit_request' | 'keyword';
+    value: string;
+    action?: string;
+    preserveContext?: boolean;
+    isActive?: boolean;
+    contactName?: string | null;
+    logoUrl?: string | null;
+  }
 ): HandoffRule {
   const id = newId();
   db.prepare(
-    `INSERT INTO handoff_rules (id, office_id, rule_type, value, action, preserve_context, is_active) VALUES (?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO handoff_rules (id, office_id, rule_type, value, action, preserve_context, is_active, contact_name, logo_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     id,
     officeId,
@@ -503,7 +511,9 @@ export function addHandoffRule(
     input.value,
     input.action ?? 'transfer_to_human',
     input.preserveContext === false ? 0 : 1,
-    input.isActive === false ? 0 : 1
+    input.isActive === false ? 0 : 1,
+    input.contactName ?? null,
+    input.logoUrl ?? null
   );
   return getHandoffRule(officeId, id)!;
 }
@@ -511,18 +521,28 @@ export function addHandoffRule(
 export function updateHandoffRule(
   officeId: string,
   id: string,
-  input: Partial<{ ruleType: 'urgency' | 'area' | 'explicit_request' | 'keyword'; value: string; action: string; preserveContext: boolean; isActive: boolean }>
+  input: Partial<{
+    ruleType: 'urgency' | 'area' | 'explicit_request' | 'keyword';
+    value: string;
+    action: string;
+    preserveContext: boolean;
+    isActive: boolean;
+    contactName: string | null;
+    logoUrl: string | null;
+  }>
 ): HandoffRule | null {
   const existing = getHandoffRule(officeId, id);
   if (!existing) return null;
   db.prepare(
-    `UPDATE handoff_rules SET rule_type = ?, value = ?, action = ?, preserve_context = ?, is_active = ? WHERE office_id = ? AND id = ?`
+    `UPDATE handoff_rules SET rule_type = ?, value = ?, action = ?, preserve_context = ?, is_active = ?, contact_name = ?, logo_url = ? WHERE office_id = ? AND id = ?`
   ).run(
     input.ruleType ?? existing.ruleType,
     input.value ?? existing.value,
     input.action ?? existing.action,
     input.preserveContext !== undefined ? (input.preserveContext ? 1 : 0) : existing.preserveContext ? 1 : 0,
     input.isActive !== undefined ? (input.isActive ? 1 : 0) : existing.isActive ? 1 : 0,
+    input.contactName !== undefined ? input.contactName : existing.contactName,
+    input.logoUrl !== undefined ? input.logoUrl : existing.logoUrl,
     officeId,
     id
   );
@@ -548,6 +568,8 @@ function mapHandoffRule(r: any): HandoffRule {
     action: r.action,
     preserveContext: !!r.preserve_context,
     isActive: !!r.is_active,
+    contactName: r.contact_name,
+    logoUrl: r.logo_url,
   };
 }
 

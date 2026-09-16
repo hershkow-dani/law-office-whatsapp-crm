@@ -249,6 +249,22 @@ describe('offices API', () => {
     expect(del.status).toBe(204);
   });
 
+  it('creates a handoff rule with a contact name and logo, and lets them be replaced via PATCH', async () => {
+    const office = await createTestOffice();
+    const created = await request(app)
+      .post(`/api/offices/${office.id}/handoff-rules`)
+      .send({ ruleType: 'urgency', value: 'high', contactName: 'עו״ד ישראלי', logoUrl: 'data:image/png;base64,AAAA' });
+    expect(created.body.contactName).toBe('עו״ד ישראלי');
+    expect(created.body.logoUrl).toBe('data:image/png;base64,AAAA');
+
+    const patched = await request(app)
+      .patch(`/api/offices/${office.id}/handoff-rules/${created.body.id}`)
+      .send({ logoUrl: 'data:image/png;base64,BBBB' });
+    expect(patched.status).toBe(200);
+    expect(patched.body.logoUrl).toBe('data:image/png;base64,BBBB');
+    expect(patched.body.contactName).toBe('עו״ד ישראלי');
+  });
+
   it('previews planned behavior: business-hours status and handoff decision together', async () => {
     const office = await createTestOffice();
     await request(app)

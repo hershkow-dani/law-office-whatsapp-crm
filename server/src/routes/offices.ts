@@ -244,11 +244,11 @@ officesRouter.get('/:officeId/handoff-rules', (req, res) => {
 officesRouter.post('/:officeId/handoff-rules', (req, res) => {
   const id = officeOr404(req, res);
   if (!id) return;
-  const { ruleType, value, action, preserveContext, isActive } = req.body ?? {};
+  const { ruleType, value, action, preserveContext, isActive, contactName, logoUrl } = req.body ?? {};
   if (!['urgency', 'area', 'explicit_request', 'keyword'].includes(ruleType) || !value) {
     return res.status(400).json({ error: 'invalid_rule' });
   }
-  res.status(201).json(repo.addHandoffRule(id, { ruleType, value, action, preserveContext, isActive }));
+  res.status(201).json(repo.addHandoffRule(id, { ruleType, value, action, preserveContext, isActive, contactName, logoUrl }));
 });
 
 officesRouter.patch('/:officeId/handoff-rules/:ruleId', (req, res) => {

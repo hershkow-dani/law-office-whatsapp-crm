@@ -116,6 +116,8 @@ export interface HandoffRule {
   action: string;
   preserveContext: boolean;
   isActive: boolean;
+  contactName: string | null;
+  logoUrl: string | null;
 }
 
 export type ConversationStatus = 'auto' | 'pending_human' | 'closed';

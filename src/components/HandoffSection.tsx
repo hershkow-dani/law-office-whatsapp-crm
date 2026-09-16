@@ -1,6 +1,76 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { HandoffRule, HandoffRuleType } from '../types';
 import { api } from '../api';
+import { ImageUploadField } from './ImageUploadField';
+
+const MAX_LOGO_BYTES = 2 * 1024 * 1024; // 2MB
+
+function ContactLogo({ rule, onUploaded }: { rule: HandoffRule; onUploaded: (logoUrl: string) => void }) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setError(null);
+
+    if (!file.type.startsWith('image/')) {
+      setError('יש לבחור קובץ תמונה');
+      return;
+    }
+    if (file.size > MAX_LOGO_BYTES) {
+      setError('הקובץ גדול מדי (מקס׳ 2MB)');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => onUploaded(reader.result as string);
+    reader.onerror = () => setError('שגיאה בקריאת הקובץ');
+    reader.readAsDataURL(file);
+  }
+
+  return (
+    <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+      <button
+        type="button"
+        onClick={() => fileInputRef.current?.click()}
+        title="העלאת/החלפת תמונת איש קשר"
+        style={{ padding: 0, border: 'none', background: 'none', cursor: 'pointer', flexShrink: 0 }}
+      >
+        {rule.logoUrl ? (
+          <img
+            src={rule.logoUrl}
+            alt={rule.contactName ?? 'איש קשר'}
+            style={{ height: 28, width: 28, borderRadius: '50%', objectFit: 'cover', border: '1px solid var(--border)' }}
+          />
+        ) : (
+          <span
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              height: 28,
+              width: 28,
+              borderRadius: '50%',
+              border: '1px dashed var(--border)',
+              fontSize: 10,
+              color: 'var(--muted)',
+            }}
+          >
+            +
+          </span>
+        )}
+      </button>
+      <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileChange} style={{ display: 'none' }} />
+      {error && (
+        <span className="status error" style={{ fontSize: 10 }}>
+          {error}
+        </span>
+      )}
+    </span>
+  );
+}
 
 const RULE_LABEL: Record<HandoffRuleType, string> = {
   urgency: 'רמת דחיפות',
@@ -23,6 +93,8 @@ export function HandoffSection({
 }) {
   const [ruleType, setRuleType] = useState<HandoffRuleType>('keyword');
   const [value, setValue] = useState('');
+  const [contactName, setContactName] = useState('');
+  const [logoUrl, setLogoUrl] = useState('');
   const [busy, setBusy] = useState(false);
 
   const [previewText, setPreviewText] = useState('');
@@ -33,8 +105,16 @@ export function HandoffSection({
     if (!v) return;
     setBusy(true);
     try {
-      await api.addHandoffRule(officeId, { ruleType, value: v, preserveContext: true });
+      await api.addHandoffRule(officeId, {
+        ruleType,
+        value: v,
+        preserveContext: true,
+        contactName: contactName.trim() || null,
+        logoUrl: logoUrl || null,
+      });
       setValue('');
+      setContactName('');
+      setLogoUrl('');
       onSaved();
     } finally {
       setBusy(false);
@@ -43,6 +123,11 @@ export function HandoffSection({
 
   async function toggleActive(rule: HandoffRule) {
     await api.updateHandoffRule(officeId, rule.id, { isActive: !rule.isActive });
+    onSaved();
+  }
+
+  async function uploadContactLogo(ruleId: string, newLogoUrl: string) {
+    await api.updateHandoffRule(officeId, ruleId, { logoUrl: newLogoUrl });
     onSaved();
   }
 
@@ -74,10 +159,14 @@ export function HandoffSection({
 
       {rules.map((r) => (
         <div className="list-item" key={r.id}>
-          <span>
-            {RULE_LABEL[r.ruleType]}
-            {r.ruleType !== 'explicit_request' && <>: {r.ruleType === 'urgency' ? URGENCY_LABEL[r.value] ?? r.value : r.value}</>}
-            {!r.isActive && <span className="pill">כבוי</span>}
+          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <ContactLogo rule={r} onUploaded={(url) => uploadContactLogo(r.id, url)} />
+            <span>
+              {RULE_LABEL[r.ruleType]}
+              {r.ruleType !== 'explicit_request' && <>: {r.ruleType === 'urgency' ? URGENCY_LABEL[r.value] ?? r.value : r.value}</>}
+              {r.contactName && <span className="meta"> · איש קשר: {r.contactName}</span>}
+              {!r.isActive && <span className="pill">כבוי</span>}
+            </span>
           </span>
           <span style={{ display: 'flex', gap: 6 }}>
             <button onClick={() => toggleActive(r)}>{r.isActive ? 'כבה' : 'הפעל'}</button>
@@ -121,6 +210,14 @@ export function HandoffSection({
             )}
           </div>
         )}
+        <div className="field">
+          <label>איש קשר (אופציונלי)</label>
+          <input type="text" value={contactName} onChange={(e) => setContactName(e.target.value)} placeholder="למי מועברת הפנייה" />
+        </div>
+      </div>
+      <div className="field">
+        <label>תמונת איש הקשר (אופציונלי)</label>
+        <ImageUploadField value={logoUrl} onChange={setLogoUrl} alt="תמונת איש קשר" round size={40} />
       </div>
       <div className="toolbar">
         <button className="primary" onClick={add} disabled={busy || (ruleType !== 'explicit_request' && !value.trim())}>
