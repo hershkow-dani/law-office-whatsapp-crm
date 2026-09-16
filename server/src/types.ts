@@ -69,6 +69,7 @@ export interface ServiceRegion {
   regionName: string;
   courtType: string | null;
   serviceType: string | null;
+  logoUrl: string | null;
 }
 
 export interface BusinessHour {

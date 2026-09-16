@@ -75,7 +75,8 @@ CREATE TABLE IF NOT EXISTS service_regions (
   office_id TEXT NOT NULL REFERENCES offices(id) ON DELETE CASCADE,
   region_name TEXT NOT NULL,
   court_type TEXT,
-  service_type TEXT
+  service_type TEXT,
+  logo_url TEXT
 );
 
 CREATE TABLE IF NOT EXISTS business_hours (

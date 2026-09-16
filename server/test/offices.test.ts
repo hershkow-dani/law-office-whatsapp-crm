@@ -154,6 +154,17 @@ describe('offices API', () => {
     expect(res.body.regions).toHaveLength(2);
   });
 
+  it('stores a logo per service region', async () => {
+    const office = await createTestOffice();
+    const res = await request(app)
+      .put(`/api/offices/${office.id}/service-regions`)
+      .send({
+        mode: 'regional',
+        regions: [{ regionName: 'מרכז', courtType: null, serviceType: null, logoUrl: 'data:image/png;base64,AAAA' }],
+      });
+    expect(res.body.regions[0].logoUrl).toBe('data:image/png;base64,AAAA');
+  });
+
   it('replaces the full weekly business-hours schedule', async () => {
     const office = await createTestOffice();
     const hours = [0, 1, 2, 3, 4].map((d) => ({ dayOfWeek: d, isClosed: false, openTime: '09:00', closeTime: '17:00' }));

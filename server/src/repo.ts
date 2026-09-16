@@ -264,18 +264,27 @@ export function getServiceRegionsConfig(officeId: string): ServiceRegionsConfig 
 
 export function listServiceRegions(officeId: string): ServiceRegion[] {
   const rows = db.prepare(`SELECT * FROM service_regions WHERE office_id = ?`).all(officeId) as any[];
-  return rows.map((r) => ({ id: r.id, officeId: r.office_id, regionName: r.region_name, courtType: r.court_type, serviceType: r.service_type }));
+  return rows.map((r) => ({
+    id: r.id,
+    officeId: r.office_id,
+    regionName: r.region_name,
+    courtType: r.court_type,
+    serviceType: r.service_type,
+    logoUrl: r.logo_url,
+  }));
 }
 
 export function replaceServiceRegions(
   officeId: string,
-  regions: { regionName: string; courtType?: string | null; serviceType?: string | null }[]
+  regions: { regionName: string; courtType?: string | null; serviceType?: string | null; logoUrl?: string | null }[]
 ): ServiceRegion[] {
   const tx = db.transaction(() => {
     db.prepare(`DELETE FROM service_regions WHERE office_id = ?`).run(officeId);
-    const stmt = db.prepare(`INSERT INTO service_regions (id, office_id, region_name, court_type, service_type) VALUES (?, ?, ?, ?, ?)`);
+    const stmt = db.prepare(
+      `INSERT INTO service_regions (id, office_id, region_name, court_type, service_type, logo_url) VALUES (?, ?, ?, ?, ?, ?)`
+    );
     for (const r of regions) {
-      stmt.run(newId(), officeId, r.regionName, r.courtType ?? null, r.serviceType ?? null);
+      stmt.run(newId(), officeId, r.regionName, r.courtType ?? null, r.serviceType ?? null, r.logoUrl ?? null);
     }
   });
   tx();

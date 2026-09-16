@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { ServiceRegion, ServiceRegionsConfig } from '../types';
 import { api } from '../api';
 import { useSaveStatus } from '../useSaveStatus';
+import { ImageUploadField } from './ImageUploadField';
 
 export function ServiceRegionsSection({
   officeId,
@@ -16,7 +17,7 @@ export function ServiceRegionsSection({
 }) {
   const [mode, setMode] = useState<ServiceRegionsConfig['mode']>(config?.mode ?? 'national');
   const [localRegions, setLocalRegions] = useState<Omit<ServiceRegion, 'id' | 'officeId'>[]>(
-    regions.map((r) => ({ regionName: r.regionName, courtType: r.courtType, serviceType: r.serviceType }))
+    regions.map((r) => ({ regionName: r.regionName, courtType: r.courtType, serviceType: r.serviceType, logoUrl: r.logoUrl }))
   );
   const { status, run } = useSaveStatus();
 
@@ -25,7 +26,7 @@ export function ServiceRegionsSection({
   }
 
   function addRegion() {
-    setLocalRegions((prev) => [...prev, { regionName: '', courtType: null, serviceType: null }]);
+    setLocalRegions((prev) => [...prev, { regionName: '', courtType: null, serviceType: null, logoUrl: null }]);
   }
 
   function removeRegion(idx: number) {
@@ -56,33 +57,44 @@ export function ServiceRegionsSection({
       {mode === 'regional' && (
         <div>
           {localRegions.map((r, idx) => (
-            <div className="row" key={idx} style={{ alignItems: 'flex-end' }}>
-              <div className="field">
-                <label>אזור גאוגרפי</label>
-                <input type="text" value={r.regionName} onChange={(e) => updateRegion(idx, { regionName: e.target.value })} placeholder="מרכז" />
+            <div key={idx} style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 10, marginBottom: 10 }}>
+              <div className="row" style={{ alignItems: 'flex-end' }}>
+                <div className="field">
+                  <label>אזור גאוגרפי</label>
+                  <input type="text" value={r.regionName} onChange={(e) => updateRegion(idx, { regionName: e.target.value })} placeholder="מרכז" />
+                </div>
+                <div className="field">
+                  <label>ערכאה (אופציונלי)</label>
+                  <input
+                    type="text"
+                    value={r.courtType ?? ''}
+                    onChange={(e) => updateRegion(idx, { courtType: e.target.value || null })}
+                    placeholder="שלום / מחוזי"
+                  />
+                </div>
+                <div className="field">
+                  <label>סוג שירות (אופציונלי)</label>
+                  <input
+                    type="text"
+                    value={r.serviceType ?? ''}
+                    onChange={(e) => updateRegion(idx, { serviceType: e.target.value || null })}
+                    placeholder="ייצוג / ייעוץ"
+                  />
+                </div>
+                <div className="field" style={{ flex: '0 0 auto' }}>
+                  <button className="danger" onClick={() => removeRegion(idx)}>
+                    הסר
+                  </button>
+                </div>
               </div>
               <div className="field">
-                <label>ערכאה (אופציונלי)</label>
-                <input
-                  type="text"
-                  value={r.courtType ?? ''}
-                  onChange={(e) => updateRegion(idx, { courtType: e.target.value || null })}
-                  placeholder="שלום / מחוזי"
+                <label>לוגו לאזור (אופציונלי)</label>
+                <ImageUploadField
+                  value={r.logoUrl ?? ''}
+                  onChange={(url) => updateRegion(idx, { logoUrl: url || null })}
+                  alt={`לוגו ${r.regionName || 'אזור שירות'}`}
+                  size={40}
                 />
-              </div>
-              <div className="field">
-                <label>סוג שירות (אופציונלי)</label>
-                <input
-                  type="text"
-                  value={r.serviceType ?? ''}
-                  onChange={(e) => updateRegion(idx, { serviceType: e.target.value || null })}
-                  placeholder="ייצוג / ייעוץ"
-                />
-              </div>
-              <div className="field" style={{ flex: '0 0 auto' }}>
-                <button className="danger" onClick={() => removeRegion(idx)}>
-                  הסר
-                </button>
               </div>
             </div>
           ))}
