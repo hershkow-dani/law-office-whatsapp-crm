@@ -200,20 +200,21 @@ export function CasesPanel({ officeId }: { officeId: string }) {
                   <span className="meta">{expandedDocId === d.id ? 'סגור' : 'הצג'}</span>
                 </div>
                 {expandedDocId === d.id && (
-                  <pre
+                  <div
                     style={{
-                      whiteSpace: 'pre-wrap',
                       background: '#f8fafc',
                       border: '1px solid var(--border)',
                       borderRadius: 6,
                       padding: 10,
-                      fontSize: 13,
                       marginTop: -4,
                       marginBottom: 8,
                     }}
                   >
-                    {d.content}
-                  </pre>
+                    {d.logoUrl && (
+                      <img src={d.logoUrl} alt="לוגו" style={{ height: 40, objectFit: 'contain', marginBottom: 8, display: 'block' }} />
+                    )}
+                    <pre style={{ whiteSpace: 'pre-wrap', fontSize: 13, margin: 0 }}>{d.content}</pre>
+                  </div>
                 )}
               </div>
             ))}

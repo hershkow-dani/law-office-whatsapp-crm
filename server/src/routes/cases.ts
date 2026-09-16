@@ -150,6 +150,7 @@ casesRouter.post('/:caseId/documents', (req, res) => {
     title: `${template.name} — ${caseRecord.title}`,
     content,
     missingFields,
+    logoUrl: template.logoUrl ?? profile.office.logoUrl,
   });
   res.status(201).json(document);
 });

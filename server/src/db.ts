@@ -178,6 +178,7 @@ CREATE TABLE IF NOT EXISTS document_templates (
   office_id TEXT NOT NULL REFERENCES offices(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   body TEXT NOT NULL,
+  logo_url TEXT,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
@@ -190,6 +191,7 @@ CREATE TABLE IF NOT EXISTS documents (
   title TEXT NOT NULL,
   content TEXT NOT NULL,
   missing_fields TEXT NOT NULL DEFAULT '[]',
+  logo_url TEXT,
   created_at TEXT NOT NULL
 );
 `);

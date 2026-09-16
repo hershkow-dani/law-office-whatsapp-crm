@@ -22,9 +22,9 @@ documentTemplatesRouter.get('/', (req, res) => {
 documentTemplatesRouter.post('/', (req, res) => {
   const id = officeOr404(req, res);
   if (!id) return;
-  const { name, body } = req.body ?? {};
+  const { name, body, logoUrl } = req.body ?? {};
   if (!name || !body) return res.status(400).json({ error: 'name_and_body_required' });
-  res.status(201).json(crm.createDocumentTemplate(id, { name, body }));
+  res.status(201).json(crm.createDocumentTemplate(id, { name, body, logoUrl }));
 });
 
 documentTemplatesRouter.patch('/:templateId', (req, res) => {

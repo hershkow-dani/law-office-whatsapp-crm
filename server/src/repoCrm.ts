@@ -312,14 +312,15 @@ function mapTask(r: any): CaseTask {
 
 // ---- document templates ----
 
-export function createDocumentTemplate(officeId: string, input: { name: string; body: string }): DocumentTemplate {
+export function createDocumentTemplate(officeId: string, input: { name: string; body: string; logoUrl?: string | null }): DocumentTemplate {
   const id = newId();
   const ts = now();
-  db.prepare(`INSERT INTO document_templates (id, office_id, name, body, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`).run(
+  db.prepare(`INSERT INTO document_templates (id, office_id, name, body, logo_url, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)`).run(
     id,
     officeId,
     input.name,
     input.body,
+    input.logoUrl ?? null,
     ts,
     ts
   );
@@ -336,13 +337,18 @@ export function getDocumentTemplate(officeId: string, id: string): DocumentTempl
   return row ? mapTemplate(row) : null;
 }
 
-export function updateDocumentTemplate(officeId: string, id: string, patch: Partial<{ name: string; body: string }>): DocumentTemplate | null {
+export function updateDocumentTemplate(
+  officeId: string,
+  id: string,
+  patch: Partial<{ name: string; body: string; logoUrl: string | null }>
+): DocumentTemplate | null {
   const existing = getDocumentTemplate(officeId, id);
   if (!existing) return null;
   const ts = now();
-  db.prepare(`UPDATE document_templates SET name = ?, body = ?, updated_at = ? WHERE office_id = ? AND id = ?`).run(
+  db.prepare(`UPDATE document_templates SET name = ?, body = ?, logo_url = ?, updated_at = ? WHERE office_id = ? AND id = ?`).run(
     patch.name ?? existing.name,
     patch.body ?? existing.body,
+    patch.logoUrl !== undefined ? patch.logoUrl : existing.logoUrl,
     ts,
     officeId,
     id
@@ -356,20 +362,38 @@ export function deleteDocumentTemplate(officeId: string, id: string): boolean {
 }
 
 function mapTemplate(r: any): DocumentTemplate {
-  return { id: r.id, officeId: r.office_id, name: r.name, body: r.body, createdAt: r.created_at, updatedAt: r.updated_at };
+  return {
+    id: r.id,
+    officeId: r.office_id,
+    name: r.name,
+    body: r.body,
+    logoUrl: r.logo_url,
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+  };
 }
 
 // ---- documents ----
 
 export function createDocument(
   officeId: string,
-  input: { caseId?: string | null; templateId?: string | null; title: string; content: string; missingFields: string[] }
+  input: { caseId?: string | null; templateId?: string | null; title: string; content: string; missingFields: string[]; logoUrl?: string | null }
 ): CrmDocument {
   const id = newId();
   const ts = now();
   db.prepare(
-    `INSERT INTO documents (id, office_id, case_id, template_id, title, content, missing_fields, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-  ).run(id, officeId, input.caseId ?? null, input.templateId ?? null, input.title, input.content, JSON.stringify(input.missingFields), ts);
+    `INSERT INTO documents (id, office_id, case_id, template_id, title, content, missing_fields, logo_url, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(
+    id,
+    officeId,
+    input.caseId ?? null,
+    input.templateId ?? null,
+    input.title,
+    input.content,
+    JSON.stringify(input.missingFields),
+    input.logoUrl ?? null,
+    ts
+  );
   return getDocument(officeId, id)!;
 }
 
@@ -392,6 +416,7 @@ function mapDocument(r: any): CrmDocument {
     title: r.title,
     content: r.content,
     missingFields: JSON.parse(r.missing_fields),
+    logoUrl: r.logo_url,
     createdAt: r.created_at,
   };
 }

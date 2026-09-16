@@ -27,6 +27,19 @@ describe('document templates API', () => {
     const del = await request(app).delete(`/api/offices/${office.id}/document-templates/${created.body.id}`);
     expect(del.status).toBe(204);
   });
+
+  it('creates a template with its own logo and can replace it', async () => {
+    const office = await createOffice();
+    const created = await request(app)
+      .post(`/api/offices/${office.id}/document-templates`)
+      .send({ name: 'מכתב', body: 'שלום {{clientName}}', logoUrl: 'data:image/png;base64,AAAA' });
+    expect(created.body.logoUrl).toBe('data:image/png;base64,AAAA');
+
+    const updated = await request(app)
+      .patch(`/api/offices/${office.id}/document-templates/${created.body.id}`)
+      .send({ logoUrl: 'data:image/png;base64,BBBB' });
+    expect(updated.body.logoUrl).toBe('data:image/png;base64,BBBB');
+  });
 });
 
 describe('document generation API', () => {
@@ -76,6 +89,32 @@ describe('document generation API', () => {
     expect(doc.status).toBe(201);
     expect(doc.body.missingFields.sort()).toEqual(['clientName', 'clientPhone']);
     expect(doc.body.content).toContain('{{clientName}}');
+  });
+
+  it('stamps the generated document with the template logo when set', async () => {
+    const office = await createOffice();
+    await request(app).patch(`/api/offices/${office.id}`).send({ logoUrl: 'data:image/png;base64,OFFICELOGO' });
+    const template = await request(app)
+      .post(`/api/offices/${office.id}/document-templates`)
+      .send({ name: 'מכתב', body: 'שלום {{clientName}}', logoUrl: 'data:image/png;base64,TEMPLATELOGO' })
+      .then((r) => r.body);
+    const caseRecord = await request(app).post(`/api/offices/${office.id}/cases`).send({ title: 'תיק' }).then((r) => r.body);
+
+    const doc = await request(app).post(`/api/offices/${office.id}/cases/${caseRecord.id}/documents`).send({ templateId: template.id });
+    expect(doc.body.logoUrl).toBe('data:image/png;base64,TEMPLATELOGO');
+  });
+
+  it('falls back to the office logo when the template has none', async () => {
+    const office = await createOffice();
+    await request(app).patch(`/api/offices/${office.id}`).send({ logoUrl: 'data:image/png;base64,OFFICELOGO' });
+    const template = await request(app)
+      .post(`/api/offices/${office.id}/document-templates`)
+      .send({ name: 'מכתב', body: 'שלום {{clientName}}' })
+      .then((r) => r.body);
+    const caseRecord = await request(app).post(`/api/offices/${office.id}/cases`).send({ title: 'תיק' }).then((r) => r.body);
+
+    const doc = await request(app).post(`/api/offices/${office.id}/cases/${caseRecord.id}/documents`).send({ templateId: template.id });
+    expect(doc.body.logoUrl).toBe('data:image/png;base64,OFFICELOGO');
   });
 
   it('returns 400 when the template does not exist', async () => {

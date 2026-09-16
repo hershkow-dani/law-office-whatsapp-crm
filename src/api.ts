@@ -143,9 +143,9 @@ export const api = {
   // ---- Stage C: document templates & generation ----
 
   listDocumentTemplates: (id: string) => http<DocumentTemplate[]>(`${base}/${id}/document-templates`),
-  createDocumentTemplate: (id: string, input: { name: string; body: string }) =>
+  createDocumentTemplate: (id: string, input: { name: string; body: string; logoUrl?: string | null }) =>
     http<DocumentTemplate>(`${base}/${id}/document-templates`, { method: 'POST', body: JSON.stringify(input) }),
-  updateDocumentTemplate: (id: string, templateId: string, input: Partial<{ name: string; body: string }>) =>
+  updateDocumentTemplate: (id: string, templateId: string, input: Partial<{ name: string; body: string; logoUrl: string | null }>) =>
     http<DocumentTemplate>(`${base}/${id}/document-templates/${templateId}`, { method: 'PATCH', body: JSON.stringify(input) }),
   deleteDocumentTemplate: (id: string, templateId: string) =>
     http<void>(`${base}/${id}/document-templates/${templateId}`, { method: 'DELETE' }),

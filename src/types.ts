@@ -175,6 +175,7 @@ export interface DocumentTemplate {
   officeId: string;
   name: string;
   body: string;
+  logoUrl: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -187,6 +188,7 @@ export interface CrmDocument {
   title: string;
   content: string;
   missingFields: string[];
+  logoUrl: string | null;
   createdAt: string;
 }
 
