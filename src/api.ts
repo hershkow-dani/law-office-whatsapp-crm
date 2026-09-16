@@ -21,11 +21,13 @@ import type {
   ReportsSummary,
   DocumentTemplate,
   CrmDocument,
+  AuthUser,
 } from './types';
 
 async function http<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await fetch(url, {
     ...options,
+    credentials: 'include',
     headers: { 'Content-Type': 'application/json', ...(options?.headers ?? {}) },
   });
   if (!res.ok) {
@@ -39,9 +41,18 @@ async function http<T>(url: string, options?: RequestInit): Promise<T> {
 const base = '/api/offices';
 
 export const api = {
-  listOffices: () => http<Office[]>(base),
-  createOffice: (input: { name: string; logoUrl?: string | null; address?: string | null }) =>
-    http<Office>(base, { method: 'POST', body: JSON.stringify(input) }),
+  register: (input: { officeName: string; name: string; email: string; password: string }) =>
+    http<{ user: AuthUser; office: Office }>('/api/auth/register', { method: 'POST', body: JSON.stringify(input) }),
+  login: (input: { email: string; password: string }) =>
+    http<{ user: AuthUser; office: Office }>('/api/auth/login', { method: 'POST', body: JSON.stringify(input) }),
+  logout: () => http<void>('/api/auth/logout', { method: 'POST' }),
+  me: () => http<{ user: AuthUser; office: Office }>('/api/auth/me'),
+
+  listUsers: (officeId: string) => http<AuthUser[]>(`${base}/${officeId}/users`),
+  addUser: (officeId: string, input: { name: string; email: string; password: string; role: 'owner' | 'staff' }) =>
+    http<AuthUser>(`${base}/${officeId}/users`, { method: 'POST', body: JSON.stringify(input) }),
+  removeUser: (officeId: string, userId: string) => http<void>(`${base}/${officeId}/users/${userId}`, { method: 'DELETE' }),
+
   getOfficeProfile: (id: string) => http<OfficeProfile>(`${base}/${id}`),
   updateOffice: (id: string, input: Partial<{ name: string; logoUrl: string | null; address: string | null }>) =>
     http<Office>(`${base}/${id}`, { method: 'PATCH', body: JSON.stringify(input) }),

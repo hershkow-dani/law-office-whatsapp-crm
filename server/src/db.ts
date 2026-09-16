@@ -199,4 +199,14 @@ CREATE TABLE IF NOT EXISTS documents (
   logo_url TEXT,
   created_at TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS users (
+  id TEXT PRIMARY KEY,
+  office_id TEXT NOT NULL REFERENCES offices(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  email TEXT NOT NULL UNIQUE,
+  password_hash TEXT NOT NULL,
+  role TEXT NOT NULL DEFAULT 'staff' CHECK (role IN ('owner','staff')),
+  created_at TEXT NOT NULL
+);
 `);

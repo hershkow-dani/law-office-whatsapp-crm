@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { Office, OfficeProfile } from './types';
+import type { AuthUser, Office, OfficeProfile } from './types';
 import { api } from './api';
-import { OfficeSelector } from './components/OfficeSelector';
+import { AuthScreen } from './components/AuthScreen';
 import { IdentitySection } from './components/IdentitySection';
 import { WhatsappSection } from './components/WhatsappSection';
 import { RepresentativeSection } from './components/RepresentativeSection';
@@ -16,21 +16,35 @@ import { ConversationsPanel } from './components/ConversationsPanel';
 import { CasesPanel } from './components/CasesPanel';
 import { ReportsPanel } from './components/ReportsPanel';
 import { DocumentTemplatesSection } from './components/DocumentTemplatesSection';
+import { UsersSection } from './components/UsersSection';
 
 type Tab = 'settings' | 'crm';
+type Session = { user: AuthUser; office: Office };
 
 function App() {
-  const [offices, setOffices] = useState<Office[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [session, setSession] = useState<Session | null | undefined>(undefined); // undefined = still checking
   const [profile, setProfile] = useState<OfficeProfile | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [tab, setTab] = useState<Tab>('settings');
+  const [tab, setTab] = useState<Tab>('crm');
 
-  const loadOffices = useCallback(async () => {
-    const list = await api.listOffices();
-    setOffices(list);
-    return list;
+  useEffect(() => {
+    api
+      .me()
+      .then((s) => applySession(s))
+      .catch(() => setSession(null));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // A stale 'settings' tab selection from a previous (owner) session must
+  // not survive into a new session — a staff login right after an owner
+  // logout would otherwise immediately fire the owner-only profile fetch
+  // and show a raw 403 error banner instead of the conversations view.
+  function applySession(s: Session | null) {
+    setSession(s);
+    setTab('crm');
+    setProfile(null);
+    setLoadError(null);
+  }
 
   const loadProfile = useCallback(async (id: string) => {
     try {
@@ -43,60 +57,56 @@ function App() {
   }, []);
 
   useEffect(() => {
-    loadOffices().then((list) => {
-      if (list.length > 0) setSelectedId(list[0].id);
-    });
-  }, [loadOffices]);
-
-  useEffect(() => {
-    if (selectedId) loadProfile(selectedId);
-    else setProfile(null);
-  }, [selectedId, loadProfile]);
+    if (session && session.user.role === 'owner' && tab === 'settings') loadProfile(session.office.id);
+  }, [session, tab, loadProfile]);
 
   function refresh() {
-    if (selectedId) loadProfile(selectedId);
+    if (session) loadProfile(session.office.id);
   }
+
+  async function logout() {
+    await api.logout();
+    applySession(null);
+  }
+
+  if (session === undefined) {
+    return <div className="app-shell" />; // brief flash while checking the session
+  }
+
+  if (session === null) {
+    return <AuthScreen onAuthenticated={(s) => applySession(s)} />;
+  }
+
+  const isOwner = session.user.role === 'owner';
 
   return (
     <div className="app-shell">
       <header className="app-header">
-        <h1>מערכת CRM למשרדי עורכי דין</h1>
-        <p>שלב א׳: הגדרות משרד ו-WhatsApp. שלב ב׳: מנוע שיחה, חילוץ שדות, תיקים ודוחות.</p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
+          <div>
+            <h1>{session.office.name}</h1>
+            <p>
+              מחוברים כ-{session.user.name} ({session.user.role === 'owner' ? 'בעלים' : 'צוות'})
+            </p>
+          </div>
+          <button onClick={logout}>התנתקות</button>
+        </div>
       </header>
 
-      <OfficeSelector
-        offices={offices}
-        selectedId={selectedId}
-        onSelect={setSelectedId}
-        onCreated={(office) => {
-          setOffices((prev) => [office, ...prev]);
-          setSelectedId(office.id);
-        }}
-        onDeleted={(id) => {
-          setOffices((prev) => {
-            const remaining = prev.filter((o) => o.id !== id);
-            setSelectedId(remaining[0]?.id ?? null);
-            return remaining;
-          });
-        }}
-      />
-
-      {loadError && <p className="status error">{loadError}</p>}
-
-      {!selectedId && <p className="hint">אין עדיין משרד. צרו משרד חדש כדי להתחיל.</p>}
-
-      {selectedId && (
-        <div className="toolbar" style={{ marginBottom: 16 }}>
+      <div className="toolbar" style={{ marginBottom: 16 }}>
+        <button className={tab === 'crm' ? 'primary' : ''} onClick={() => setTab('crm')}>
+          שיחות, תיקים ודוחות
+        </button>
+        {isOwner && (
           <button className={tab === 'settings' ? 'primary' : ''} onClick={() => setTab('settings')}>
             הגדרות משרד
           </button>
-          <button className={tab === 'crm' ? 'primary' : ''} onClick={() => setTab('crm')}>
-            שיחות, תיקים ודוחות
-          </button>
-        </div>
-      )}
+        )}
+      </div>
 
-      {tab === 'settings' && profile && (
+      {loadError && <p className="status error">{loadError}</p>}
+
+      {tab === 'settings' && isOwner && profile && (
         <>
           <WhatsappSection officeId={profile.office.id} connection={profile.whatsapp} onSaved={refresh} />
           <IdentitySection office={profile.office} onSaved={refresh} />
@@ -120,14 +130,15 @@ function App() {
           <StaffSection officeId={profile.office.id} staff={profile.staff} practiceAreas={profile.practiceAreas} onSaved={refresh} />
           <HandoffSection officeId={profile.office.id} rules={profile.handoffRules} onSaved={refresh} />
           <DocumentTemplatesSection officeId={profile.office.id} />
+          <UsersSection officeId={profile.office.id} currentUserId={session.user.id} />
         </>
       )}
 
-      {tab === 'crm' && selectedId && (
+      {tab === 'crm' && (
         <>
-          <ConversationsPanel officeId={selectedId} />
-          <CasesPanel officeId={selectedId} />
-          <ReportsPanel officeId={selectedId} />
+          <ConversationsPanel officeId={session.office.id} />
+          <CasesPanel officeId={session.office.id} />
+          <ReportsPanel officeId={session.office.id} />
         </>
       )}
     </div>

@@ -1,8 +1,23 @@
 import { Router } from 'express';
 import * as repo from '../repo.js';
 import { resolveBusinessHoursStatus, shouldHandoffToHuman } from '../engine/decision.js';
+import { requireOfficeMatch, requireRole } from '../middleware/auth.js';
 
 export const officesRouter = Router();
+
+// Every route below takes :officeId — enforce auth, tenant isolation, and
+// (owner-only) role in one place rather than per-route. Deliberately a
+// router.param() hook, not a blanket router.use('/:officeId', ...): this
+// mount shares the /api/offices prefix with sibling routers (conversations,
+// cases, ...) registered separately in app.ts, and a use() would prefix-match
+// and swallow *their* requests too (since none of officesRouter's own routes
+// match e.g. /:officeId/conversations, Express would never reach those other
+// routers). param() only fires when a route actually matched inside this
+// router. There is no unauthenticated office listing or creation anymore:
+// office + first owner are created together via POST /api/auth/register.
+officesRouter.param('officeId', (req: any, res: any, next: any) => {
+  requireOfficeMatch(req, res, () => requireRole('owner')(req, res, next));
+});
 
 function officeOr404(req: any, res: any): string | null {
   const office = repo.getOffice(req.params.officeId);
@@ -14,18 +29,6 @@ function officeOr404(req: any, res: any): string | null {
 }
 
 // ---- offices ----
-
-officesRouter.get('/', (_req, res) => {
-  res.json(repo.listOffices());
-});
-
-officesRouter.post('/', (req, res) => {
-  const { name, logoUrl, address } = req.body ?? {};
-  if (!name || typeof name !== 'string') {
-    return res.status(400).json({ error: 'name_required' });
-  }
-  res.status(201).json(repo.createOffice({ name, logoUrl, address }));
-});
 
 officesRouter.get('/:officeId', (req, res) => {
   const profile = repo.getOfficeProfile(req.params.officeId);

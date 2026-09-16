@@ -14,6 +14,15 @@ export interface Office {
   updatedAt: string;
 }
 
+export interface AuthUser {
+  id: string;
+  officeId: string;
+  name: string;
+  email: string;
+  role: 'owner' | 'staff';
+  createdAt: string;
+}
+
 export interface WhatsappConnection {
   officeId: string;
   numberType: NumberType;

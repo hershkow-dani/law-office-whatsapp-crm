@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { createHmac } from 'node:crypto';
 import request from 'supertest';
 import { createApp } from '../src/app.js';
@@ -11,8 +11,21 @@ afterEach(() => {
   else process.env.WHATSAPP_APP_SECRET = ORIGINAL_APP_SECRET;
 });
 
+function uniqueEmail() {
+  return `webhook-owner-${Math.random().toString(36).slice(2)}@example.com`;
+}
+
+/**
+ * Registers a fresh office + owner for test setup (connecting a WhatsApp
+ * number, reading conversations afterward). The webhook endpoints
+ * themselves are never called through this agent — Meta doesn't have a user
+ * session, only the X-Hub-Signature-256 header, so those calls stay as
+ * plain unauthenticated `request(app)`.
+ */
 async function createOffice() {
-  return request(app).post('/api/offices').send({ name: 'משרד webhook' }).then((r) => r.body);
+  const agent = request.agent(app);
+  const reg = await agent.post('/api/auth/register').send({ officeName: 'משרד webhook', name: 'הבעלים', email: uniqueEmail(), password: 'password123' });
+  return { agent, ...reg.body.office };
 }
 
 function sign(body: string, secret: string): string {
@@ -44,11 +57,12 @@ function metaPayload(from: string, text: string, contactName: string | null, pho
 describe('GET /api/webhooks/whatsapp/:officeId (verification handshake)', () => {
   it('echoes the challenge when the verify token matches', async () => {
     const office = await createOffice();
-    const conn = await request(app)
+    const conn = await office.agent
       .put(`/api/offices/${office.id}/whatsapp`)
       .send({ numberType: 'dedicated', phoneNumber: '+972501234567' })
       .then((r) => r.body);
 
+    // Meta calls this directly with no session — a plain unauthenticated request.
     const res = await request(app)
       .get(`/api/webhooks/whatsapp/${office.id}`)
       .query({ 'hub.mode': 'subscribe', 'hub.verify_token': conn.webhookVerifyToken, 'hub.challenge': '12345' });
@@ -59,7 +73,7 @@ describe('GET /api/webhooks/whatsapp/:officeId (verification handshake)', () => 
 
   it('rejects a wrong verify token', async () => {
     const office = await createOffice();
-    await request(app).put(`/api/offices/${office.id}/whatsapp`).send({ numberType: 'dedicated', phoneNumber: '+972501234567' });
+    await office.agent.put(`/api/offices/${office.id}/whatsapp`).send({ numberType: 'dedicated', phoneNumber: '+972501234567' });
 
     const res = await request(app)
       .get(`/api/webhooks/whatsapp/${office.id}`)
@@ -94,7 +108,7 @@ describe('POST /api/webhooks/whatsapp/:officeId (incoming messages)', () => {
   it('creates a conversation and processes the inbound message when the signature is valid', async () => {
     process.env.WHATSAPP_APP_SECRET = 'test-secret';
     const office = await createOffice();
-    await request(app).put(`/api/offices/${office.id}/disclosure`).send({ enabled: true, messageText: 'שיחה זו מנוהלת אוטומטית.' });
+    await office.agent.put(`/api/offices/${office.id}/disclosure`).send({ enabled: true, messageText: 'שיחה זו מנוהלת אוטומטית.' });
 
     const bodyStr = JSON.stringify(metaPayload('972501234567', 'שלום, אני צריכה עזרה', 'דנה כהן'));
     const res = await request(app)
@@ -106,12 +120,12 @@ describe('POST /api/webhooks/whatsapp/:officeId (incoming messages)', () => {
     expect(res.status).toBe(200);
     expect(res.body.received).toBe(1);
 
-    const conversations = await request(app).get(`/api/offices/${office.id}/conversations`).then((r) => r.body);
+    const conversations = await office.agent.get(`/api/offices/${office.id}/conversations`).then((r) => r.body);
     expect(conversations).toHaveLength(1);
     expect(conversations[0].contactPhone).toBe('+972501234567');
     expect(conversations[0].contactName).toBe('דנה כהן');
 
-    const detail = await request(app).get(`/api/offices/${office.id}/conversations/${conversations[0].id}`).then((r) => r.body);
+    const detail = await office.agent.get(`/api/offices/${office.id}/conversations/${conversations[0].id}`).then((r) => r.body);
     expect(detail.messages).toHaveLength(2);
     expect(detail.messages[0].direction).toBe('inbound');
     expect(detail.messages[1].direction).toBe('outbound');
@@ -136,7 +150,7 @@ describe('POST /api/webhooks/whatsapp/:officeId (incoming messages)', () => {
       .set('x-hub-signature-256', sign(second, 'test-secret'))
       .send(second);
 
-    const conversations = await request(app).get(`/api/offices/${office.id}/conversations`).then((r) => r.body);
+    const conversations = await office.agent.get(`/api/offices/${office.id}/conversations`).then((r) => r.body);
     expect(conversations).toHaveLength(1);
   });
 
@@ -155,12 +169,12 @@ describe('POST /api/webhooks/whatsapp/:officeId (incoming messages)', () => {
 describe('POST /api/offices/:officeId/whatsapp/regenerate-webhook-token', () => {
   it('issues a new token different from the original', async () => {
     const office = await createOffice();
-    const conn = await request(app)
+    const conn = await office.agent
       .put(`/api/offices/${office.id}/whatsapp`)
       .send({ numberType: 'dedicated', phoneNumber: '+972501234567' })
       .then((r) => r.body);
 
-    const regenerated = await request(app).post(`/api/offices/${office.id}/whatsapp/regenerate-webhook-token`);
+    const regenerated = await office.agent.post(`/api/offices/${office.id}/whatsapp/regenerate-webhook-token`);
     expect(regenerated.status).toBe(200);
     expect(regenerated.body.webhookVerifyToken).not.toBe(conn.webhookVerifyToken);
   });
