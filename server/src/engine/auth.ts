@@ -1,6 +1,21 @@
-import { randomBytes, scryptSync, timingSafeEqual, createHmac } from 'node:crypto';
+import { randomBytes, scryptSync, timingSafeEqual, createHmac, createHash } from 'node:crypto';
 
 const SCRYPT_KEYLEN = 64;
+
+/**
+ * Password-reset tokens are high-entropy random values (not user-chosen
+ * secrets), so a plain salted SHA-256 hash is enough — no need for scrypt's
+ * deliberate slowness. Only the hash is stored; the raw token goes out in
+ * the email link and is never persisted.
+ */
+export function createResetToken(): { rawToken: string; tokenHash: string } {
+  const rawToken = randomBytes(32).toString('hex');
+  return { rawToken, tokenHash: hashResetToken(rawToken) };
+}
+
+export function hashResetToken(rawToken: string): string {
+  return createHash('sha256').update(rawToken).digest('hex');
+}
 
 /** Hashes a password as "salt:hash" (both hex) using scrypt — no external dependency needed. */
 export function hashPassword(password: string): string {

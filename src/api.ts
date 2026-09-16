@@ -47,6 +47,9 @@ export const api = {
     http<{ user: AuthUser; office: Office }>('/api/auth/login', { method: 'POST', body: JSON.stringify(input) }),
   logout: () => http<void>('/api/auth/logout', { method: 'POST' }),
   me: () => http<{ user: AuthUser; office: Office }>('/api/auth/me'),
+  forgotPassword: (input: { email: string }) => http<{ message: string }>('/api/auth/forgot-password', { method: 'POST', body: JSON.stringify(input) }),
+  resetPassword: (input: { token: string; newPassword: string }) =>
+    http<void>('/api/auth/reset-password', { method: 'POST', body: JSON.stringify(input) }),
 
   listUsers: (officeId: string) => http<AuthUser[]>(`${base}/${officeId}/users`),
   addUser: (officeId: string, input: { name: string; email: string; password: string; role: 'owner' | 'staff' }) =>

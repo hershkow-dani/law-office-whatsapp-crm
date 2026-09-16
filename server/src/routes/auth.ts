@@ -1,14 +1,28 @@
 import { Router } from 'express';
 import * as repo from '../repo.js';
 import * as repoAuth from '../repoAuth.js';
-import { hashPassword, verifyPassword, createSessionToken, getSessionSecret } from '../engine/auth.js';
+import { hashPassword, verifyPassword, createSessionToken, getSessionSecret, createResetToken, hashResetToken } from '../engine/auth.js';
 import { serializeSessionCookie, serializeClearedSessionCookie } from '../engine/cookies.js';
 import { requireAuth } from '../middleware/auth.js';
+import { getEmailProvider } from '../engine/email.js';
 
 export const authRouter = Router();
 
 const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30; // 30 days
+const RESET_TOKEN_TTL_SECONDS = 60 * 60; // 1 hour
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// Lightweight per-email cooldown so this public endpoint can't be used to
+// spam an inbox. Not a substitute for real rate limiting in production
+// (in-memory, per-process, resets on restart) — good enough to stop the
+// trivial "click send 50 times" case.
+const FORGOT_PASSWORD_COOLDOWN_SECONDS = 60;
+const lastForgotPasswordRequestAt = new Map<string, number>();
+
+function resetPasswordUrl(rawToken: string): string {
+  const origin = process.env.FRONTEND_ORIGIN ?? 'http://localhost:5180';
+  return `${origin}/?resetToken=${rawToken}`;
+}
 
 function setSessionCookie(res: any, payload: { userId: string; officeId: string; role: 'owner' | 'staff' }) {
   const token = createSessionToken(payload, getSessionSecret(), SESSION_MAX_AGE_SECONDS);
@@ -78,4 +92,61 @@ authRouter.get('/me', requireAuth, (req, res) => {
   const office = repo.getOffice(req.user!.officeId);
   if (!user || !office) return res.status(401).json({ error: 'not_authenticated' });
   res.json({ user, office });
+});
+
+/**
+ * Always responds the same way regardless of whether the email is
+ * registered — revealing that would let anyone enumerate which addresses
+ * have accounts. If it does match a user, emails a one-time reset link
+ * valid for an hour (server/src/engine/email.ts — mock by default, see
+ * README for what a real provider needs).
+ */
+authRouter.post('/forgot-password', async (req, res) => {
+  const { email } = req.body ?? {};
+  if (!email || typeof email !== 'string' || !EMAIL_RE.test(email)) {
+    return res.status(400).json({ error: 'valid_email_required' });
+  }
+
+  const normalized = email.toLowerCase();
+  const lastRequest = lastForgotPasswordRequestAt.get(normalized);
+  if (lastRequest && Date.now() - lastRequest < FORGOT_PASSWORD_COOLDOWN_SECONDS * 1000) {
+    return res.status(429).json({ error: 'too_many_requests' });
+  }
+  lastForgotPasswordRequestAt.set(normalized, Date.now());
+
+  const user = repoAuth.getUserByEmailWithHash(email);
+  if (user) {
+    const { rawToken, tokenHash } = createResetToken();
+    repoAuth.createPasswordReset(user.id, tokenHash, RESET_TOKEN_TTL_SECONDS);
+    const office = repo.getOffice(user.officeId);
+    const link = resetPasswordUrl(rawToken);
+    try {
+      await getEmailProvider().sendMail(
+        user.email,
+        `איפוס סיסמה — ${office?.name ?? 'מערכת CRM'}`,
+        `שלום ${user.name},\n\nהתקבלה בקשה לאיפוס הסיסמה שלך.\nלאיפוס, היכנס/י לקישור הבא תוך שעה:\n${link}\n\nאם לא ביקשת זאת, אפשר להתעלם מהודעה זו.`
+      );
+    } catch (e) {
+      // A misconfigured email provider shouldn't leak via the response
+      // (same enumeration concern as above) — log it server-side instead.
+      console.error('Failed to send password reset email:', e);
+    }
+  }
+
+  res.json({ message: 'אם קיים חשבון עם כתובת זו, נשלח אליו קישור לאיפוס סיסמה.' });
+});
+
+authRouter.post('/reset-password', (req, res) => {
+  const { token, newPassword } = req.body ?? {};
+  if (!token || typeof token !== 'string') return res.status(400).json({ error: 'token_required' });
+  if (!newPassword || typeof newPassword !== 'string' || newPassword.length < 8) {
+    return res.status(400).json({ error: 'password_min_8_chars' });
+  }
+
+  const userId = repoAuth.getUserIdForValidResetToken(hashResetToken(token));
+  if (!userId) return res.status(400).json({ error: 'invalid_or_expired_token' });
+
+  repoAuth.updateUserPasswordHash(userId, hashPassword(newPassword));
+  repoAuth.deleteAllResetTokensForUser(userId);
+  res.status(204).end();
 });

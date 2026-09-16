@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type { AuthUser, Office, OfficeProfile } from './types';
 import { api } from './api';
 import { AuthScreen } from './components/AuthScreen';
+import { ResetPasswordScreen } from './components/ResetPasswordScreen';
 import { IdentitySection } from './components/IdentitySection';
 import { WhatsappSection } from './components/WhatsappSection';
 import { RepresentativeSection } from './components/RepresentativeSection';
@@ -26,6 +27,7 @@ function App() {
   const [profile, setProfile] = useState<OfficeProfile | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>('crm');
+  const [resetToken, setResetToken] = useState<string | null>(() => new URLSearchParams(window.location.search).get('resetToken'));
 
   useEffect(() => {
     api
@@ -67,6 +69,18 @@ function App() {
   async function logout() {
     await api.logout();
     applySession(null);
+  }
+
+  if (resetToken) {
+    return (
+      <ResetPasswordScreen
+        token={resetToken}
+        onDone={() => {
+          setResetToken(null);
+          window.history.replaceState({}, '', window.location.pathname);
+        }}
+      />
+    );
   }
 
   if (session === undefined) {
