@@ -19,13 +19,16 @@ const now = () => new Date().toISOString();
 
 // ---- conversations ----
 
-export function createConversation(officeId: string, input: { contactPhone: string; contactName?: string | null }): Conversation {
+export function createConversation(
+  officeId: string,
+  input: { contactPhone: string; contactName?: string | null; contactPhotoUrl?: string | null }
+): Conversation {
   const id = newId();
   const ts = now();
   db.prepare(
-    `INSERT INTO conversations (id, office_id, contact_phone, contact_name, status, practice_area, assigned_staff_id, created_at, updated_at, last_message_at)
-     VALUES (?, ?, ?, ?, 'auto', NULL, NULL, ?, ?, ?)`
-  ).run(id, officeId, input.contactPhone, input.contactName ?? null, ts, ts, ts);
+    `INSERT INTO conversations (id, office_id, contact_phone, contact_name, contact_photo_url, status, practice_area, assigned_staff_id, created_at, updated_at, last_message_at)
+     VALUES (?, ?, ?, ?, ?, 'auto', NULL, NULL, ?, ?, ?)`
+  ).run(id, officeId, input.contactPhone, input.contactName ?? null, input.contactPhotoUrl ?? null, ts, ts, ts);
   return getConversation(officeId, id)!;
 }
 
@@ -48,18 +51,22 @@ export function updateConversation(
     assignedStaffId: string | null;
     everHandoff: boolean;
     lastMessageAt: string;
+    contactName: string | null;
+    contactPhotoUrl: string | null;
   }>
 ): Conversation | null {
   const existing = getConversation(officeId, id);
   if (!existing) return null;
   const ts = now();
   db.prepare(
-    `UPDATE conversations SET status = ?, practice_area = ?, assigned_staff_id = ?, ever_handoff = ?, updated_at = ?, last_message_at = ? WHERE office_id = ? AND id = ?`
+    `UPDATE conversations SET status = ?, practice_area = ?, assigned_staff_id = ?, ever_handoff = ?, contact_name = ?, contact_photo_url = ?, updated_at = ?, last_message_at = ? WHERE office_id = ? AND id = ?`
   ).run(
     patch.status ?? existing.status,
     patch.practiceArea !== undefined ? patch.practiceArea : existing.practiceArea,
     patch.assignedStaffId !== undefined ? patch.assignedStaffId : existing.assignedStaffId,
     patch.everHandoff !== undefined ? (patch.everHandoff ? 1 : 0) : existing.everHandoff ? 1 : 0,
+    patch.contactName !== undefined ? patch.contactName : existing.contactName,
+    patch.contactPhotoUrl !== undefined ? patch.contactPhotoUrl : existing.contactPhotoUrl,
     ts,
     patch.lastMessageAt ?? existing.lastMessageAt,
     officeId,
@@ -74,6 +81,7 @@ function mapConversation(r: any): Conversation {
     officeId: r.office_id,
     contactPhone: r.contact_phone,
     contactName: r.contact_name,
+    contactPhotoUrl: r.contact_photo_url,
     status: r.status,
     practiceArea: r.practice_area,
     assignedStaffId: r.assigned_staff_id,

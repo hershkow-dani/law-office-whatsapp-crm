@@ -129,6 +129,7 @@ CREATE TABLE IF NOT EXISTS conversations (
   office_id TEXT NOT NULL REFERENCES offices(id) ON DELETE CASCADE,
   contact_phone TEXT NOT NULL,
   contact_name TEXT,
+  contact_photo_url TEXT,
   status TEXT NOT NULL DEFAULT 'auto' CHECK (status IN ('auto','pending_human','closed')),
   practice_area TEXT,
   assigned_staff_id TEXT REFERENCES staff(id) ON DELETE SET NULL,

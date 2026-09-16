@@ -145,6 +145,7 @@ export interface Conversation {
   officeId: string;
   contactPhone: string;
   contactName: string | null;
+  contactPhotoUrl: string | null;
   status: ConversationStatus;
   practiceArea: string | null;
   assignedStaffId: string | null;

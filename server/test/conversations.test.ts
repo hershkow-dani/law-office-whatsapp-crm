@@ -21,6 +21,22 @@ describe('conversations API', () => {
     const res = await request(app).post(`/api/offices/${office.id}/conversations`).send({ contactPhone: '+972501234567' });
     expect(res.status).toBe(201);
     expect(res.body.status).toBe('auto');
+    expect(res.body.contactPhotoUrl).toBeNull();
+  });
+
+  it('accepts a contact photo on creation and lets it be replaced via PATCH', async () => {
+    const office = await createOfficeWithSettings();
+    const created = await request(app)
+      .post(`/api/offices/${office.id}/conversations`)
+      .send({ contactPhone: '+972501234567', contactPhotoUrl: 'data:image/png;base64,AAAA' });
+    expect(created.body.contactPhotoUrl).toBe('data:image/png;base64,AAAA');
+
+    const patched = await request(app)
+      .patch(`/api/offices/${office.id}/conversations/${created.body.id}`)
+      .send({ contactPhotoUrl: 'data:image/png;base64,BBBB' });
+    expect(patched.status).toBe(200);
+    expect(patched.body.contactPhotoUrl).toBe('data:image/png;base64,BBBB');
+    expect(patched.body.contactName).toBe(created.body.contactName);
   });
 
   it('auto-replies to the first inbound message with disclosure + representative intro', async () => {

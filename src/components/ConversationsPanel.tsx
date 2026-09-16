@@ -1,6 +1,79 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Conversation, Message } from '../types';
 import { api } from '../api';
+import { ImageUploadField } from './ImageUploadField';
+
+const MAX_PHOTO_BYTES = 2 * 1024 * 1024; // 2MB
+
+function ContactAvatar({ conversation, onUploaded, size = 40 }: { conversation: Conversation; onUploaded: (photoUrl: string) => void; size?: number }) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setError(null);
+
+    if (!file.type.startsWith('image/')) {
+      setError('יש לבחור קובץ תמונה');
+      return;
+    }
+    if (file.size > MAX_PHOTO_BYTES) {
+      setError('הקובץ גדול מדי (מקס׳ 2MB)');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => onUploaded(reader.result as string);
+    reader.onerror = () => setError('שגיאה בקריאת הקובץ');
+    reader.readAsDataURL(file);
+  }
+
+  return (
+    <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          fileInputRef.current?.click();
+        }}
+        title="העלאת/החלפת תמונת לקוח"
+        style={{ padding: 0, border: 'none', background: 'none', cursor: 'pointer', flexShrink: 0 }}
+      >
+        {conversation.contactPhotoUrl ? (
+          <img
+            src={conversation.contactPhotoUrl}
+            alt={conversation.contactName || conversation.contactPhone}
+            style={{ height: size, width: size, borderRadius: '50%', objectFit: 'cover', border: '1px solid var(--border)' }}
+          />
+        ) : (
+          <span
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              height: size,
+              width: size,
+              borderRadius: '50%',
+              border: '1px dashed var(--border)',
+              fontSize: 10,
+              color: 'var(--muted)',
+            }}
+          >
+            +
+          </span>
+        )}
+      </button>
+      <input ref={fileInputRef} type="file" accept="image/*" onClick={(e) => e.stopPropagation()} onChange={handleFileChange} style={{ display: 'none' }} />
+      {error && (
+        <span className="status error" style={{ fontSize: 10 }}>
+          {error}
+        </span>
+      )}
+    </span>
+  );
+}
 
 const STATUS_LABEL: Record<Conversation['status'], string> = {
   auto: 'מענה אוטומטי',
@@ -16,6 +89,7 @@ export function ConversationsPanel({ officeId }: { officeId: string }) {
 
   const [newPhone, setNewPhone] = useState('');
   const [newName, setNewName] = useState('');
+  const [newPhotoUrl, setNewPhotoUrl] = useState('');
   const [clientText, setClientText] = useState('');
   const [staffText, setStaffText] = useState('');
   const [busy, setBusy] = useState(false);
@@ -50,14 +124,25 @@ export function ConversationsPanel({ officeId }: { officeId: string }) {
     if (!newPhone.trim()) return;
     setBusy(true);
     try {
-      const conv = await api.createConversation(officeId, { contactPhone: newPhone.trim(), contactName: newName.trim() || null });
+      const conv = await api.createConversation(officeId, {
+        contactPhone: newPhone.trim(),
+        contactName: newName.trim() || null,
+        contactPhotoUrl: newPhotoUrl || null,
+      });
       setNewPhone('');
       setNewName('');
+      setNewPhotoUrl('');
       await refreshList();
       setSelectedId(conv.id);
     } finally {
       setBusy(false);
     }
+  }
+
+  async function uploadContactPhoto(conversationId: string, photoUrl: string) {
+    await api.updateConversation(officeId, conversationId, { contactPhotoUrl: photoUrl });
+    await refreshList();
+    if (selectedId === conversationId) await refreshDetail(conversationId);
   }
 
   async function sendAsClient() {
@@ -125,6 +210,11 @@ export function ConversationsPanel({ officeId }: { officeId: string }) {
         </div>
       </div>
 
+      <div className="field">
+        <label>תמונת לקוח (אופציונלי)</label>
+        <ImageUploadField value={newPhotoUrl} onChange={setNewPhotoUrl} alt="תמונת לקוח" round size={44} />
+      </div>
+
       <div style={{ display: 'flex', gap: 16, marginTop: 10, flexWrap: 'wrap' }}>
         <div style={{ flex: '1 1 220px', minWidth: 220 }}>
           {conversations.length === 0 && <p className="field-hint">אין עדיין שיחות.</p>}
@@ -135,9 +225,12 @@ export function ConversationsPanel({ officeId }: { officeId: string }) {
               style={{ cursor: 'pointer', borderColor: c.id === selectedId ? 'var(--primary)' : undefined }}
               onClick={() => setSelectedId(c.id)}
             >
-              <span>
-                {c.contactName || c.contactPhone}
-                <span className="meta"> · {c.contactPhone}</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <ContactAvatar conversation={c} onUploaded={(url) => uploadContactPhoto(c.id, url)} size={28} />
+                <span>
+                  {c.contactName || c.contactPhone}
+                  <span className="meta"> · {c.contactPhone}</span>
+                </span>
               </span>
               <span className="pill">{STATUS_LABEL[c.status]}</span>
             </div>
@@ -146,6 +239,10 @@ export function ConversationsPanel({ officeId }: { officeId: string }) {
 
         {selected && (
           <div style={{ flex: '2 1 320px', minWidth: 280 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+              <ContactAvatar conversation={selected} onUploaded={(url) => uploadContactPhoto(selected.id, url)} />
+              <strong>{selected.contactName || selected.contactPhone}</strong>
+            </div>
             <p className="field-hint">
               סטטוס: <span className="pill">{STATUS_LABEL[selected.status]}</span>
               {selected.practiceArea && <> · תחום שזוהה: {selected.practiceArea}</>}

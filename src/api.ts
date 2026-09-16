@@ -107,8 +107,10 @@ export const api = {
   // ---- Stage B: conversations, cases, tasks, reports ----
 
   listConversations: (id: string) => http<Conversation[]>(`${base}/${id}/conversations`),
-  createConversation: (id: string, input: { contactPhone: string; contactName?: string | null }) =>
+  createConversation: (id: string, input: { contactPhone: string; contactName?: string | null; contactPhotoUrl?: string | null }) =>
     http<Conversation>(`${base}/${id}/conversations`, { method: 'POST', body: JSON.stringify(input) }),
+  updateConversation: (id: string, conversationId: string, input: Partial<{ contactName: string | null; contactPhotoUrl: string | null }>) =>
+    http<Conversation>(`${base}/${id}/conversations/${conversationId}`, { method: 'PATCH', body: JSON.stringify(input) }),
   getConversation: (id: string, conversationId: string) =>
     http<{ conversation: Conversation; messages: Message[] }>(`${base}/${id}/conversations/${conversationId}`),
   sendInbound: (id: string, conversationId: string, input: { text: string; explicitHumanRequest?: boolean }) =>

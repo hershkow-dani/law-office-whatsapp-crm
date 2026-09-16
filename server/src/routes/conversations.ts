@@ -24,9 +24,9 @@ conversationsRouter.get('/', (req, res) => {
 conversationsRouter.post('/', (req, res) => {
   const id = officeOr404(req, res);
   if (!id) return;
-  const { contactPhone, contactName } = req.body ?? {};
+  const { contactPhone, contactName, contactPhotoUrl } = req.body ?? {};
   if (!contactPhone) return res.status(400).json({ error: 'contact_phone_required' });
-  res.status(201).json(crm.createConversation(id, { contactPhone, contactName }));
+  res.status(201).json(crm.createConversation(id, { contactPhone, contactName, contactPhotoUrl }));
 });
 
 conversationsRouter.get('/:conversationId', (req, res) => {
@@ -35,6 +35,15 @@ conversationsRouter.get('/:conversationId', (req, res) => {
   const conversation = crm.getConversation(id, req.params.conversationId);
   if (!conversation) return res.status(404).json({ error: 'conversation_not_found' });
   res.json({ conversation, messages: crm.listMessages(conversation.id) });
+});
+
+conversationsRouter.patch('/:conversationId', (req, res) => {
+  const officeId = officeOr404(req, res);
+  if (!officeId) return;
+  const { contactName, contactPhotoUrl } = req.body ?? {};
+  const updated = crm.updateConversation(officeId, req.params.conversationId, { contactName, contactPhotoUrl });
+  if (!updated) return res.status(404).json({ error: 'conversation_not_found' });
+  res.json(updated);
 });
 
 conversationsRouter.post('/:conversationId/inbound', async (req, res) => {
