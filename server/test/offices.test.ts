@@ -123,6 +123,21 @@ describe('offices API', () => {
     expect(del.status).toBe(204);
   });
 
+  it('creates a practice area with a logo and lets it be replaced via PATCH', async () => {
+    const office = await createTestOffice();
+    const created = await request(app)
+      .post(`/api/offices/${office.id}/practice-areas`)
+      .send({ name: 'פלילי', logoUrl: 'data:image/png;base64,AAAA' });
+    expect(created.body.logoUrl).toBe('data:image/png;base64,AAAA');
+
+    const patched = await request(app)
+      .patch(`/api/offices/${office.id}/practice-areas/${created.body.id}`)
+      .send({ logoUrl: 'data:image/png;base64,BBBB' });
+    expect(patched.status).toBe(200);
+    expect(patched.body.logoUrl).toBe('data:image/png;base64,BBBB');
+    expect(patched.body.name).toBe('פלילי');
+  });
+
   it('sets service regions mode and region list', async () => {
     const office = await createTestOffice();
     const res = await request(app)

@@ -200,23 +200,49 @@ export function getStyle(officeId: string): ConversationStyle | null {
 
 export function listPracticeAreas(officeId: string): PracticeArea[] {
   const rows = db.prepare(`SELECT * FROM practice_areas WHERE office_id = ?`).all(officeId) as any[];
-  return rows.map((r) => ({ id: r.id, officeId: r.office_id, name: r.name, parentId: r.parent_id }));
+  return rows.map(mapPracticeArea);
 }
 
-export function addPracticeArea(officeId: string, input: { name: string; parentId?: string | null }): PracticeArea {
+export function addPracticeArea(
+  officeId: string,
+  input: { name: string; parentId?: string | null; logoUrl?: string | null }
+): PracticeArea {
   const id = newId();
-  db.prepare(`INSERT INTO practice_areas (id, office_id, name, parent_id) VALUES (?, ?, ?, ?)`).run(
+  db.prepare(`INSERT INTO practice_areas (id, office_id, name, parent_id, logo_url) VALUES (?, ?, ?, ?, ?)`).run(
     id,
     officeId,
     input.name,
-    input.parentId ?? null
+    input.parentId ?? null,
+    input.logoUrl ?? null
   );
-  return { id, officeId, name: input.name, parentId: input.parentId ?? null };
+  return { id, officeId, name: input.name, parentId: input.parentId ?? null, logoUrl: input.logoUrl ?? null };
+}
+
+export function updatePracticeArea(
+  officeId: string,
+  id: string,
+  patch: Partial<{ name: string; parentId: string | null; logoUrl: string | null }>
+): PracticeArea | null {
+  const row = db.prepare(`SELECT * FROM practice_areas WHERE office_id = ? AND id = ?`).get(officeId, id) as any;
+  if (!row) return null;
+  const existing = mapPracticeArea(row);
+  db.prepare(`UPDATE practice_areas SET name = ?, parent_id = ?, logo_url = ? WHERE office_id = ? AND id = ?`).run(
+    patch.name ?? existing.name,
+    patch.parentId !== undefined ? patch.parentId : existing.parentId,
+    patch.logoUrl !== undefined ? patch.logoUrl : existing.logoUrl,
+    officeId,
+    id
+  );
+  return mapPracticeArea(db.prepare(`SELECT * FROM practice_areas WHERE office_id = ? AND id = ?`).get(officeId, id) as any);
 }
 
 export function deletePracticeArea(officeId: string, id: string): boolean {
   const result = db.prepare(`DELETE FROM practice_areas WHERE office_id = ? AND id = ?`).run(officeId, id);
   return result.changes > 0;
+}
+
+function mapPracticeArea(r: any): PracticeArea {
+  return { id: r.id, officeId: r.office_id, name: r.name, parentId: r.parent_id, logoUrl: r.logo_url };
 }
 
 // ---- service regions ----

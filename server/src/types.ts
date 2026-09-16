@@ -54,6 +54,7 @@ export interface PracticeArea {
   officeId: string;
   name: string;
   parentId: string | null;
+  logoUrl: string | null;
 }
 
 export interface ServiceRegionsConfig {

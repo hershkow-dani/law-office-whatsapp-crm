@@ -69,8 +69,10 @@ export const api = {
   setStyle: (id: string, input: { tone: ConversationStyle['tone']; customNotes?: string | null }) =>
     http<ConversationStyle>(`${base}/${id}/style`, { method: 'PUT', body: JSON.stringify(input) }),
 
-  addPracticeArea: (id: string, input: { name: string; parentId?: string | null }) =>
+  addPracticeArea: (id: string, input: { name: string; parentId?: string | null; logoUrl?: string | null }) =>
     http<PracticeArea>(`${base}/${id}/practice-areas`, { method: 'POST', body: JSON.stringify(input) }),
+  updatePracticeArea: (id: string, areaId: string, input: Partial<{ name: string; parentId: string | null; logoUrl: string | null }>) =>
+    http<PracticeArea>(`${base}/${id}/practice-areas/${areaId}`, { method: 'PATCH', body: JSON.stringify(input) }),
   deletePracticeArea: (id: string, areaId: string) =>
     http<void>(`${base}/${id}/practice-areas/${areaId}`, { method: 'DELETE' }),
 

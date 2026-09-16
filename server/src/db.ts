@@ -60,7 +60,8 @@ CREATE TABLE IF NOT EXISTS practice_areas (
   id TEXT PRIMARY KEY,
   office_id TEXT NOT NULL REFERENCES offices(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
-  parent_id TEXT REFERENCES practice_areas(id) ON DELETE CASCADE
+  parent_id TEXT REFERENCES practice_areas(id) ON DELETE CASCADE,
+  logo_url TEXT
 );
 
 CREATE TABLE IF NOT EXISTS service_regions_config (

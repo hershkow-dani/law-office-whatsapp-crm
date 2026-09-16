@@ -115,9 +115,17 @@ officesRouter.get('/:officeId/practice-areas', (req, res) => {
 officesRouter.post('/:officeId/practice-areas', (req, res) => {
   const id = officeOr404(req, res);
   if (!id) return;
-  const { name, parentId } = req.body ?? {};
+  const { name, parentId, logoUrl } = req.body ?? {};
   if (!name) return res.status(400).json({ error: 'name_required' });
-  res.status(201).json(repo.addPracticeArea(id, { name, parentId }));
+  res.status(201).json(repo.addPracticeArea(id, { name, parentId, logoUrl }));
+});
+
+officesRouter.patch('/:officeId/practice-areas/:areaId', (req, res) => {
+  const id = officeOr404(req, res);
+  if (!id) return;
+  const updated = repo.updatePracticeArea(id, req.params.areaId, req.body ?? {});
+  if (!updated) return res.status(404).json({ error: 'practice_area_not_found' });
+  res.json(updated);
 });
 
 officesRouter.delete('/:officeId/practice-areas/:areaId', (req, res) => {
