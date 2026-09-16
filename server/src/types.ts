@@ -23,6 +23,8 @@ export interface WhatsappConnection {
   connectionStatus: ConnectionStatus;
   provider: string | null;
   notes: string | null;
+  webhookVerifyToken: string | null;
+  providerPhoneNumberId: string | null;
   updatedAt: string;
 }
 

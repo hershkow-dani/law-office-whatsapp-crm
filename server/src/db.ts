@@ -30,6 +30,8 @@ CREATE TABLE IF NOT EXISTS whatsapp_connections (
   connection_status TEXT NOT NULL DEFAULT 'not_connected' CHECK (connection_status IN ('not_connected','pending','connected')),
   provider TEXT,
   notes TEXT,
+  webhook_verify_token TEXT,
+  provider_phone_number_id TEXT,
   updated_at TEXT NOT NULL
 );
 

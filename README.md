@@ -20,6 +20,10 @@
 /server/src/engine/autoReply.ts   בניית תגובה אוטומטית משילוב הגדרות המשרד + מנוע ההחלטה
 /server/src/engine/scoring.ts     ניקוד 0-100 לפי זמן תגובה, שלמות שדות, נכונות ההעברה לאדם
 /server/src/engine/documentRender.ts   מילוי {{placeholders}} בתבנית מסמך מתוך נתוני משרד/תיק/שיחה
+/server/src/engine/inboundPipeline.ts  צנרת "הודעה נכנסת → חילוץ+החלטה+תגובה" משותפת ל-/inbound ולוובהוק
+/server/src/engine/webhookSecurity.ts  אימות חתימת X-Hub-Signature-256 של Meta
+/server/src/engine/metaWebhookParser.ts   פענוח payload של webhook לרשימת הודעות נכנסות
+/server/src/routes/webhooks.ts    נקודת קצה לקליטת webhook (handshake + הודעות נכנסות)
 ```
 
 ### למה הבחירות האלה
@@ -55,7 +59,7 @@ npm run dev
 
 ```bash
 cd server
-npm test        # 65 בדיקות: API (משרדים, שיחות, תיקים, מסמכים) + כל מנועי ההחלטה/חילוץ/ניקוד/מסמכים
+npm test        # 92 בדיקות: API (משרדים, שיחות, תיקים, מסמכים, webhook) + כל מנועי ההחלטה/חילוץ/ניקוד/מסמכים/webhook
 npx tsc -p tsconfig.json --noEmit   # type-check
 ```
 
@@ -90,10 +94,8 @@ npm start
    נדרש אישור Meta מראש לכל תבנית.
 6. **מדיניות פרטיות/שימוש** גלויה ללקוח, בהתאם לדרישות הדין ולתנאי Meta.
 
-בקוד, נקודת החיבור העתידית היא `connection_status` בטבלת `whatsapp_connections`
-(`not_connected` → `pending` → `connected`) ושדה `provider`, וכן `server/src/engine/provider.ts` — מחליפים
-את `MockWhatsappProvider` במימוש אמיתי (`WHATSAPP_PROVIDER=meta_cloud_api` וכו׳) בלי לגעת בלוגיקת מנוע
-השיחה שכבר בנויה בשלב ב׳.
+**עדכון**: שכבת הקליטה (webhook) ומימוש השליחה מול Meta כבר בנויים ומכוסים בבדיקות — ראו "שכבת ה-Webhook"
+למטה. מה שנשאר הוא אך ורק הזנת הטוקנים/הסודות עצמם דרך משתני סביבה, ללא כל שינוי קוד.
 
 ## מנוע ההחלטה (שלב א׳)
 
@@ -150,3 +152,39 @@ npm start
   (למשל עם ספריית DOCX בצד השרת) היא הרחבה עתידית שלא דורשת שינוי במנוע המילוי עצמו.
 - **אין ניהול גרסאות/עריכה למסמך שנוצר** — כל הפעלת "צור מסמך" יוצרת רשומה חדשה; אין כרגע עריכה של מסמך
   קיים אחרי יצירתו.
+
+## שכבת ה-Webhook (מוכנה, ממתינה לטוקנים)
+
+התשתית לקליטת הודעות WhatsApp אמיתיות בנויה ובדוקה (27 בדיקות ייעודיות), אך **לא מחוברת בפועל** — חסרים
+רק הטוקנים/הסודות שרק אתם יכולים לספק, כפי שפורט למעלה. שום שינוי קוד לא נדרש כדי להפעיל אותה, רק הזנת
+משתני סביבה.
+
+### מה בנוי
+
+- **`GET /api/webhooks/whatsapp/:officeId`** — ה-handshake החד-פעמי שMeta מבצע בעת רישום כתובת ה-webhook:
+  משווה את `hub.verify_token` שהתקבל מול הטוקן שנוצר אוטומטית לכל משרד עם חיבור WhatsApp (מוצג בממשק,
+  בתחתית סעיף 1 "חיבור מספר WhatsApp", עם כפתור "ייצור טוקן חדש").
+- **`POST /api/webhooks/whatsapp/:officeId`** — נקודת הקצה שMeta תשלח אליה כל הודעה נכנסת. מוודאת את
+  חתימת הבקשה (`X-Hub-Signature-256`, מחושבת מול `WHATSAPP_APP_SECRET`) לפני שהיא נוגעת בנתונים — בלי
+  `WHATSAPP_APP_SECRET` מוגדר, הנתיב מחזיר 501 ומסרב לעבד כלום (כדי שאי אפשר יהיה "לזייף" הודעות נכנסות
+  לפני שהאבטחה מוכנה). לאחר אימות, `metaWebhookParser.ts` הופך את ה-payload של Meta להודעות טקסט, ולכל
+  הודעה מאתר/פותח שיחה לפי מספר השולח ומריץ אותה דרך אותה `processInboundMessage` שמפעיל גם הנתיב הידני
+  `/conversations/:id/inbound` — כך ששני הנתיבים (בדיקה ידנית מול webhook אמיתי) אף פעם לא יכולים לסטות
+  זה מזה.
+- **`MetaCloudApiProvider`** ב-`provider.ts` — מימוש אמיתי מול ה-Graph API של Meta (`fetch` ל-
+  `graph.facebook.com/.../messages`), שנבחר עם `WHATSAPP_PROVIDER=meta_cloud_api`. זורק שגיאה ברורה
+  ומיידית אם `WHATSAPP_ACCESS_TOKEN` או ה-`phone_number_id` (מוגדר לכל משרד בסעיף 1, עם fallback גלובלי
+  ל-`WHATSAPP_PHONE_NUMBER_ID`) חסרים — לא נכשל בשקט.
+
+### מה עדיין נדרש כדי להפעיל בפועל
+
+1. `WHATSAPP_PROVIDER=meta_cloud_api` (במקום ברירת המחדל `mock`).
+2. `WHATSAPP_APP_SECRET` — מ-Meta App Dashboard, לאימות חתימת ה-webhook.
+3. `WHATSAPP_ACCESS_TOKEN` — טוקן קבוע לשליחת הודעות.
+4. מילוי `phone_number_id` בהגדרות ה-WhatsApp של כל משרד (או `WHATSAPP_PHONE_NUMBER_ID` גלובלי לבדיקה).
+5. הדבקת "נתיב ה-Webhook" ו-"Verify Token" (מוצגים בממשק) בטופס ה-Webhook של Meta, **על גבי דומיין ציבורי
+   אמיתי** — לא `localhost`. עד שהשרת רץ בפועל מאחורי כתובת HTTPS ציבורית (למשל דרך פריסה בענן, או מנהרה
+   זמנית כמו ngrok לבדיקות), אי אפשר לרשום את ה-webhook אצל Meta.
+
+עד אז, כל הבדיקה נעשית דרך `POST /conversations/:id/inbound` (הכפתורים "שלח" בטאב "שיחות, תיקים ודוחות")
+או ע"י הדמיית קריאת webhook חתומה — ראו `server/test/webhooks.test.ts` לדוגמה מלאה כולל חישוב החתימה.

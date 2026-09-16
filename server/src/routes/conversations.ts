@@ -1,9 +1,7 @@
 import { Router } from 'express';
 import * as repo from '../repo.js';
 import * as crm from '../repoCrm.js';
-import { resolveBusinessHoursStatus, shouldHandoffToHuman } from '../engine/decision.js';
-import { extractFields } from '../engine/extraction.js';
-import { buildAutoReply } from '../engine/autoReply.js';
+import { processInboundMessage } from '../engine/inboundPipeline.js';
 import { getWhatsappProvider } from '../engine/provider.js';
 
 export const conversationsRouter = Router({ mergeParams: true });
@@ -48,42 +46,11 @@ conversationsRouter.post('/:conversationId/inbound', async (req, res) => {
   const { text, at, explicitHumanRequest } = req.body ?? {};
   if (!text || typeof text !== 'string') return res.status(400).json({ error: 'text_required' });
 
-  const priorMessages = crm.listMessages(conversation.id);
-  const isFirstMessage = priorMessages.length === 0;
-
-  crm.addMessage(officeId, conversation.id, { direction: 'inbound', senderType: 'client', text });
-
-  // A closed conversation re-opens automatically when the client writes again.
-  const wasClosed = conversation.status === 'closed';
-  if (conversation.status === 'pending_human') {
-    // A human is already handling this thread — record the message but don't
-    // let the bot jump back in.
-    return res.json({ conversation: crm.getConversation(officeId, conversation.id), autoReplied: false });
-  }
-
-  const profile = repo.getOfficeProfile(officeId)!;
-  const extracted = extractFields(text, profile.practiceAreas);
-  const at_ = at ? new Date(at) : new Date();
-  const hoursStatus = resolveBusinessHoursStatus(profile, at_);
-  const handoff = shouldHandoffToHuman(profile, {
-    text,
-    explicitHumanRequest: !!explicitHumanRequest,
-    urgency: extracted.urgency ?? undefined,
-    practiceArea: extracted.practiceArea ?? undefined,
+  const result = await processInboundMessage(officeId, conversation, text, {
+    at: at ? new Date(at) : undefined,
+    explicitHumanRequest,
   });
-
-  const replyText = buildAutoReply(profile, { isFirstMessage: isFirstMessage || wasClosed, hoursStatus, handoff, extracted });
-  const provider = getWhatsappProvider();
-  await provider.sendMessage(conversation.contactPhone, replyText);
-  crm.addMessage(officeId, conversation.id, { direction: 'outbound', senderType: 'system', text: replyText });
-
-  const updated = crm.updateConversation(officeId, conversation.id, {
-    status: handoff.handoff ? 'pending_human' : 'auto',
-    practiceArea: extracted.practiceArea ?? conversation.practiceArea,
-    everHandoff: conversation.everHandoff || handoff.handoff,
-  });
-
-  res.json({ conversation: updated, autoReplied: true, replyText, hoursStatus, handoff, extracted });
+  res.json(result);
 });
 
 conversationsRouter.post('/:conversationId/outbound', async (req, res) => {
@@ -95,8 +62,9 @@ conversationsRouter.post('/:conversationId/outbound', async (req, res) => {
   const { text } = req.body ?? {};
   if (!text || typeof text !== 'string') return res.status(400).json({ error: 'text_required' });
 
+  const profile = repo.getOfficeProfile(officeId)!;
   const provider = getWhatsappProvider();
-  await provider.sendMessage(conversation.contactPhone, text);
+  await provider.sendMessage(conversation.contactPhone, text, { phoneNumberId: profile.whatsapp?.providerPhoneNumberId });
   const message = crm.addMessage(officeId, conversation.id, { direction: 'outbound', senderType: 'staff', text });
 
   res.status(201).json(message);

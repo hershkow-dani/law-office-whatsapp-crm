@@ -86,21 +86,40 @@ export function setWhatsappConnection(
     displayName?: string | null;
     provider?: string | null;
     notes?: string | null;
+    providerPhoneNumberId?: string | null;
   }
 ): WhatsappConnection {
   const ts = now();
+  const webhookVerifyToken = getWhatsappConnection(officeId)?.webhookVerifyToken ?? randomUUID();
   db.prepare(
-    `INSERT INTO whatsapp_connections (office_id, number_type, phone_number, display_name, connection_status, provider, notes, updated_at)
-     VALUES (?, ?, ?, ?, 'pending', ?, ?, ?)
+    `INSERT INTO whatsapp_connections (office_id, number_type, phone_number, display_name, connection_status, provider, notes, webhook_verify_token, provider_phone_number_id, updated_at)
+     VALUES (?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?)
      ON CONFLICT(office_id) DO UPDATE SET
        number_type = excluded.number_type,
        phone_number = excluded.phone_number,
        display_name = excluded.display_name,
        provider = excluded.provider,
        notes = excluded.notes,
+       provider_phone_number_id = excluded.provider_phone_number_id,
        updated_at = excluded.updated_at`
-  ).run(officeId, input.numberType, input.phoneNumber, input.displayName ?? null, input.provider ?? null, input.notes ?? null, ts);
+  ).run(
+    officeId,
+    input.numberType,
+    input.phoneNumber,
+    input.displayName ?? null,
+    input.provider ?? null,
+    input.notes ?? null,
+    webhookVerifyToken,
+    input.providerPhoneNumberId ?? null,
+    ts
+  );
   return getWhatsappConnection(officeId)!;
+}
+
+export function regenerateWebhookVerifyToken(officeId: string): WhatsappConnection | null {
+  if (!getWhatsappConnection(officeId)) return null;
+  db.prepare(`UPDATE whatsapp_connections SET webhook_verify_token = ?, updated_at = ? WHERE office_id = ?`).run(randomUUID(), now(), officeId);
+  return getWhatsappConnection(officeId);
 }
 
 export function getWhatsappConnection(officeId: string): WhatsappConnection | null {
@@ -114,6 +133,8 @@ export function getWhatsappConnection(officeId: string): WhatsappConnection | nu
     connectionStatus: row.connection_status,
     provider: row.provider,
     notes: row.notes,
+    webhookVerifyToken: row.webhook_verify_token,
+    providerPhoneNumberId: row.provider_phone_number_id,
     updatedAt: row.updated_at,
   };
 }

@@ -60,6 +60,14 @@ officesRouter.put('/:officeId/whatsapp', (req, res) => {
   res.json(repo.setWhatsappConnection(id, req.body));
 });
 
+officesRouter.post('/:officeId/whatsapp/regenerate-webhook-token', (req, res) => {
+  const id = officeOr404(req, res);
+  if (!id) return;
+  const updated = repo.regenerateWebhookVerifyToken(id);
+  if (!updated) return res.status(400).json({ error: 'no_whatsapp_connection' });
+  res.json(updated);
+});
+
 // ---- representative ----
 
 officesRouter.put('/:officeId/representative', (req, res) => {

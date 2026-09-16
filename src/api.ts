@@ -49,8 +49,16 @@ export const api = {
 
   setWhatsapp: (
     id: string,
-    input: { numberType: 'existing' | 'dedicated'; phoneNumber: string; displayName?: string | null; provider?: string | null; notes?: string | null }
+    input: {
+      numberType: 'existing' | 'dedicated';
+      phoneNumber: string;
+      displayName?: string | null;
+      provider?: string | null;
+      notes?: string | null;
+      providerPhoneNumberId?: string | null;
+    }
   ) => http<WhatsappConnection>(`${base}/${id}/whatsapp`, { method: 'PUT', body: JSON.stringify(input) }),
+  regenerateWebhookToken: (id: string) => http<WhatsappConnection>(`${base}/${id}/whatsapp/regenerate-webhook-token`, { method: 'POST' }),
 
   setRepresentative: (id: string, input: { name: string; role: RepresentativeIdentity['role'] }) =>
     http<RepresentativeIdentity>(`${base}/${id}/representative`, { method: 'PUT', body: JSON.stringify(input) }),
