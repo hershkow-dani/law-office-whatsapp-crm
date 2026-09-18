@@ -18,6 +18,11 @@ server/data/
 *.db-shm
 *.db-wal
 
+# deployment secrets — copy .env.example instead
+.env
+.env.*
+!.env.example
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
